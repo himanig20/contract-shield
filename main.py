@@ -5,7 +5,6 @@ from utils import (
     get_score_label,
     translate_text,
     preprocess,
-    get_risk_color,
     generate_text_report,
 )
 
@@ -45,7 +44,8 @@ LANG_MAP = {
 contract_text = st.text_area(
     "📋 Paste your contract text here:",
     height=250,
-    placeholder="Paste any labor contract, rental agreement, or loan document here..."
+    placeholder="Paste any labor contract, rental agreement, or loan document here...",
+    key="contract_input"
 )
 
 col1, col2 = st.columns([2, 1])
@@ -55,6 +55,7 @@ with col2:
     clear_btn = st.button("🗑 Clear", use_container_width=True)
 
 if clear_btn:
+    st.session_state["contract_input"] = ""
     st.rerun()
 
 with st.expander("📄 Load a sample contract for testing"):
@@ -103,32 +104,53 @@ if analyze_btn and contract_text.strip():
     if findings:
         st.subheader("🚩 Flagged Clauses")
 
+        lang_code = LANG_MAP.get(language)
+        translate_all = False
+        if lang_code:
+            translate_all = st.checkbox(
+                f"🌐 Translate all explanations to {language}",
+                value=True,
+                key="translate_all_explanations",
+            )
+
         for i, f in enumerate(findings, 1):
             risk = f['risk']
-            color = get_risk_color(risk)
             icon = {"HIGH": "🔴", "MEDIUM": "🟠", "LOW": "🟡"}.get(risk, "⚪")
+            confidence = int(f.get('confidence', 0) * 100)
+            clause_id = f.get('clause_id', 'N/A')
+            clause_text = f.get('clause_text', '')
+            match_source = f.get('match_source', 'N/A')
 
             with st.expander(f"{icon} [{risk} RISK] {f['category']}", expanded=(risk == 'HIGH')):
-                st.markdown(
-                    f"<div style='background:{color}22; border-left: 4px solid {color}; "
-                    f"padding: 10px; border-radius: 4px; margin-bottom: 10px;'>"
-                    f"<b>Matched text:</b> <code>{f['matched_text']}</code></div>",
-                    unsafe_allow_html=True
-                )
+                st.caption(f"Clause #{clause_id} · Match source: {match_source} · Confidence: {confidence}%")
+                if clause_text:
+                    st.write("Clause text:")
+                    st.code(clause_text)
+                st.write("Matched text:")
+                st.code(f['matched_text'])
 
                 explanation = f['explanation']
-                lang_code = LANG_MAP.get(language)
 
-                if lang_code:
+                if lang_code and translate_all:
                     with st.spinner(f"Translating to {language}..."):
                         explanation = translate_text(explanation, target=lang_code)
 
                 st.info(f"💡 **Explanation:** {explanation}")
+                if f.get('suggestion'):
+                    st.success(f"✅ Suggested change: {f['suggestion']}")
 
                 if language == "English":
                     if st.button(f"🌐 Translate to Hindi", key=f"translate_{i}"):
                         hindi = translate_text(f['explanation'], target='hi')
                         st.success(f"🇮🇳 **Hindi:** {hindi}")
+
+        st.subheader("🧭 What to do next")
+        st.markdown(
+            "1. Ask for edits to every HIGH-risk clause before signing.\n"
+            "2. Request objective language where terms say sole discretion or deemed fit.\n"
+            "3. Keep written proof of every negotiated change.\n"
+            "4. If HIGH-risk clauses remain, get legal review before signing."
+        )
 
         st.divider()
         report = generate_text_report(findings, score, doc_type)

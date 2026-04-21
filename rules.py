@@ -9,6 +9,7 @@ RISK_RULES = {
         'risk': 'HIGH',
         'category': 'Unfair Termination',
         'explanation': 'This allows the employer to fire you at any time without warning and possibly without paying your dues. This likely violates the Industrial Disputes Act, 1947.',
+        'suggestion': 'Ask for a clear notice period and guaranteed settlement of all pending dues.',
     },
     'predatory_interest': {
         'keywords': ['compounded daily', 'penal interest', 'per day interest',
@@ -17,6 +18,7 @@ RISK_RULES = {
         'risk': 'HIGH',
         'category': 'Predatory Interest Rate',
         'explanation': 'This interest rate compounds daily or weekly, meaning your debt can multiply extremely fast. 3% per day = over 1000% annual interest. This may be illegal under Indian usury laws.',
+        'suggestion': 'Negotiate a monthly interest cap and request a clear upper limit on total payable amount.',
     },
     'wage_deduction': {
         'keywords': ['deduct from wages', 'withhold salary', 'offset dues',
@@ -25,6 +27,7 @@ RISK_RULES = {
         'risk': 'HIGH',
         'category': 'Illegal Wage Deduction',
         'explanation': 'The employer is claiming the right to deduct money from your wages. Deductions without your written consent may be illegal under the Payment of Wages Act, 1936.',
+        'suggestion': 'Request that deductions require your written consent and be limited to lawful categories.',
     },
     'liability_waiver': {
         'keywords': ['waive all rights', 'not liable', 'no compensation',
@@ -34,6 +37,7 @@ RISK_RULES = {
         'risk': 'HIGH',
         'category': 'Liability Waiver',
         'explanation': 'You are being asked to give up your right to claim compensation if something goes wrong including workplace injury. Such waivers are often unenforceable under Indian law.',
+        'suggestion': 'Do not waive injury or compensation rights. Ask for lawful employer liability language.',
     },
     'eviction_no_notice': {
         'keywords': ['vacate immediately', 'eviction without notice',
@@ -43,6 +47,7 @@ RISK_RULES = {
         'risk': 'HIGH',
         'category': 'Unlawful Eviction',
         'explanation': 'This clause allows the landlord to evict you without proper notice. Most Indian states require 30 days written notice before eviction.',
+        'suggestion': 'Ask for written notice periods and due process terms before eviction action.',
     },
     'forced_overtime': {
         'keywords': ['mandatory overtime', 'required to work extra',
@@ -52,6 +57,7 @@ RISK_RULES = {
         'risk': 'MEDIUM',
         'category': 'Forced Overtime',
         'explanation': 'This clause requires you to work extra hours without extra pay. Under the Factories Act, overtime must be paid at double the regular rate.',
+        'suggestion': 'Request overtime payment terms with clear hourly rate and legal compliance.',
     },
     'ambiguous_discretion': {
         'keywords': ['sole discretion', 'as deemed fit', 'reasonable time',
@@ -61,6 +67,7 @@ RISK_RULES = {
         'risk': 'MEDIUM',
         'category': 'Ambiguous Term',
         'explanation': 'This phrase gives the other party unlimited power to decide without any accountability. There is no limit on what reasonable or fit means only they decide.',
+        'suggestion': 'Replace vague discretion phrases with objective criteria, timelines, and review rights.',
     },
     'non_compete': {
         'keywords': ['not engage in', 'refrain from working', 'compete with',
@@ -69,6 +76,7 @@ RISK_RULES = {
         'risk': 'MEDIUM',
         'category': 'Non-Compete Clause',
         'explanation': 'This restricts where you can work after leaving this job. Overly broad non-compete clauses are often unenforceable in India especially for low-wage workers.',
+        'suggestion': 'Narrow any non-compete by time, geography, and role, or remove it entirely.',
     },
     'penalty_clause': {
         'keywords': ['penalty of rs', 'late fee', 'surcharge',
@@ -77,6 +85,7 @@ RISK_RULES = {
         'risk': 'HIGH',
         'category': 'Excessive Penalty',
         'explanation': 'This document charges a penalty for breach. Ask: How much exactly? Under what conditions? Is there a maximum cap? Uncapped penalties can trap you in debt.',
+        'suggestion': 'Ask for a fixed and reasonable cap on penalties and transparent trigger conditions.',
     },
     'privacy_abuse': {
         'keywords': ['share personal information', 'disclose to third parties',
@@ -85,37 +94,69 @@ RISK_RULES = {
         'risk': 'LOW',
         'category': 'Privacy Concern',
         'explanation': 'Your personal information may be shared with or sold to third parties. Ask exactly who will receive your data and for what purpose.',
+        'suggestion': 'Limit data sharing to specific purposes and require prior written consent.',
     },
 }
 
 
+def split_clauses(text):
+    if not text.strip():
+        return []
+
+    # Preserve numbered clauses while also splitting sentence blocks.
+    parts = re.split(r'(?=\b\d+\.\s)|(?<=[.!?])\s+(?=[A-Z])', text)
+    clauses = [p.strip() for p in parts if p and p.strip()]
+    if clauses:
+        return clauses
+    return [text.strip()]
+
+
+def _estimate_confidence(has_keyword, has_regex):
+    if has_keyword and has_regex:
+        return 0.92
+    if has_regex:
+        return 0.82
+    return 0.65
+
+
 def analyze_contract(text):
-    text_lower = text.lower()
     findings = []
+    clauses = split_clauses(text)
 
-    for rule_name, rule in RISK_RULES.items():
-        matched = False
-        matched_text = ''
+    for clause_id, clause_text in enumerate(clauses, 1):
+        clause_lower = clause_text.lower()
+        for rule_name, rule in RISK_RULES.items():
+            keyword_match = ''
+            regex_match = ''
 
-        for kw in rule['keywords']:
-            if kw in text_lower:
-                matched = True
-                matched_text = kw
-                break
+            for kw in rule['keywords']:
+                if kw in clause_lower:
+                    keyword_match = kw
+                    break
 
-        if not matched and rule.get('regex'):
-            match = re.search(rule['regex'], text_lower)
-            if match:
-                matched = True
-                matched_text = match.group(0)
+            if rule.get('regex'):
+                match = re.search(rule['regex'], clause_lower)
+                if match:
+                    regex_match = match.group(0)
 
-        if matched:
-            findings.append({
-                'rule': rule_name,
-                'risk': rule['risk'],
-                'category': rule['category'],
-                'explanation': rule['explanation'],
-                'matched_text': matched_text,
-            })
+            if keyword_match or regex_match:
+                match_source = 'keyword+regex' if keyword_match and regex_match else ('regex' if regex_match else 'keyword')
+                matched_text = regex_match or keyword_match
+                confidence = _estimate_confidence(bool(keyword_match), bool(regex_match))
+                findings.append({
+                    'rule': rule_name,
+                    'risk': rule['risk'],
+                    'category': rule['category'],
+                    'explanation': rule['explanation'],
+                    'suggestion': rule['suggestion'],
+                    'matched_text': matched_text,
+                    'clause_id': clause_id,
+                    'clause_text': clause_text,
+                    'match_source': match_source,
+                    'confidence': confidence,
+                })
+
+    risk_order = {'HIGH': 0, 'MEDIUM': 1, 'LOW': 2}
+    findings.sort(key=lambda item: (risk_order.get(item['risk'], 3), -item['confidence'], item['clause_id']))
 
     return findings
