@@ -8,32 +8,191 @@ from utils import (
     generate_text_report,
 )
 
+# ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Contract Shield",
+    page_title="Contract Shield · Protect Your Rights",
     page_icon="🛡",
-    layout="wide"
+    layout="wide",
 )
 
-st.title("🛡 Contract Shield")
-st.caption("Protecting informal workers from exploitative contracts · Not legal advice")
-st.divider()
+# ── Global CSS ─────────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+/* ── Google Font ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-with st.sidebar:
-    st.header("⚙️ Settings")
-    doc_type = st.selectbox(
-        "Document Type",
-        ["Labor Contract", "Rental Agreement", "Loan Document", "Other"]
-    )
-    language = st.radio(
-        "Output Language",
-        ["English", "Hindi", "Marathi", "Bengali"]
-    )
-    st.divider()
-    st.markdown("**ℹ️ How to use:**")
-    st.markdown("1. Paste your contract text\n2. Click Analyze\n3. Review flagged clauses\n4. Download report")
-    st.divider()
-    st.caption("Built for social impact 🇮🇳")
+/* ── Root variables ── */
+:root {
+    --navy:      #0a0f1e;
+    --navy-2:    #0d1529;
+    --navy-3:    #111c35;
+    --navy-4:    #162040;
+    --green:     #00ff88;
+    --green-dim: #00cc6a;
+    --red:       #ff4444;
+    --red-dim:   #cc2222;
+    --yellow:    #ffd166;
+    --orange:    #ff9f43;
+    --text:      #e8eaf6;
+    --muted:     #7888aa;
+    --border:    rgba(255,255,255,0.07);
+    --glow-g:    0 0 24px rgba(0,255,136,0.25);
+    --glow-r:    0 0 24px rgba(255,68,68,0.25);
+    --radius:    14px;
+}
 
+/* ── Base reset ── */
+html, body, [data-testid="stAppViewContainer"],
+[data-testid="stApp"] {
+    background-color: var(--navy) !important;
+    color: var(--text) !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+[data-testid="stHeader"] { background: transparent !important; }
+
+/* ── Sticky top bar ── */
+[data-testid="stHeader"]::after {
+    content: '';
+    display: block;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 60px;
+    background: rgba(10,15,30,0.85);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    z-index: 999;
+}
+
+/* ── Sidebar ── */
+[data-testid="stSidebar"] {
+    background: var(--navy-2) !important;
+    border-right: 1px solid var(--border) !important;
+}
+[data-testid="stSidebar"] * { color: var(--text) !important; }
+[data-testid="stSidebar"] .stSelectbox label,
+[data-testid="stSidebar"] .stRadio label { color: var(--muted) !important; font-size: 0.78rem !important; letter-spacing: 0.06em !important; text-transform: uppercase !important; }
+[data-testid="stSidebar"] .stSelectbox > div > div,
+[data-testid="stSidebar"] .stRadio > div { background: var(--navy-4) !important; border-radius: 8px !important; border: 1px solid var(--border) !important; }
+
+/* ── Text area ── */
+textarea {
+    background: var(--navy-3) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    color: var(--text) !important;
+    font-family: 'Inter', monospace !important;
+    font-size: 0.92rem !important;
+    transition: border-color 0.2s;
+}
+textarea:focus { border-color: var(--green) !important; box-shadow: var(--glow-g) !important; outline: none !important; }
+
+/* ── Primary button ── */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, var(--green), #00cc6a) !important;
+    color: #0a0f1e !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.65rem 1.5rem !important;
+    transition: all 0.22s ease !important;
+    box-shadow: 0 4px 20px rgba(0,255,136,0.3) !important;
+}
+.stButton > button[kind="primary"]:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 32px rgba(0,255,136,0.45) !important;
+}
+
+/* ── Secondary button ── */
+.stButton > button:not([kind="primary"]) {
+    background: var(--navy-4) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+.stButton > button:not([kind="primary"]):hover {
+    border-color: var(--green) !important;
+    color: var(--green) !important;
+}
+
+/* ── Download button ── */
+.stDownloadButton > button {
+    background: var(--navy-4) !important;
+    color: var(--green) !important;
+    border: 1px solid var(--green) !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    transition: all 0.22s !important;
+}
+.stDownloadButton > button:hover {
+    background: var(--green) !important;
+    color: var(--navy) !important;
+    box-shadow: var(--glow-g) !important;
+}
+
+/* ── Expander ── */
+.streamlit-expanderHeader {
+    background: var(--navy-3) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: 0.93rem !important;
+    color: var(--text) !important;
+    transition: background 0.2s !important;
+}
+.streamlit-expanderHeader:hover { background: var(--navy-4) !important; }
+.streamlit-expanderContent {
+    background: var(--navy-3) !important;
+    border: 1px solid var(--border) !important;
+    border-top: none !important;
+    border-radius: 0 0 10px 10px !important;
+}
+
+/* ── Info / success / warning boxes ── */
+.stAlert { border-radius: 10px !important; border: 1px solid var(--border) !important; }
+
+/* ── Divider ── */
+hr { border-color: var(--border) !important; }
+
+/* ── Code blocks ── */
+.stCodeBlock, code {
+    background: #060b18 !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border) !important;
+    color: #a8d8a8 !important;
+}
+
+/* ── Metric ── */
+[data-testid="stMetric"] {
+    background: var(--navy-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.2rem;
+}
+[data-testid="stMetricLabel"] { color: var(--muted) !important; font-size: 0.78rem !important; letter-spacing: 0.08em; text-transform: uppercase; }
+[data-testid="stMetricValue"] { font-size: 2.4rem !important; font-weight: 800 !important; color: var(--green) !important; }
+
+/* ── Caption ── */
+.stCaption { color: var(--muted) !important; font-size: 0.78rem !important; }
+
+/* ── Checkbox ── */
+.stCheckbox label { color: var(--text) !important; }
+
+/* ── Spinner ── */
+.stSpinner > div { border-top-color: var(--green) !important; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--navy-2); }
+::-webkit-scrollbar-thumb { background: var(--navy-4); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
+</style>
+""", unsafe_allow_html=True)
+
+# ── Language map (must be defined before sidebar) ──────────────────────────────
 LANG_MAP = {
     "English": None,
     "Hindi": "hi",
@@ -41,24 +200,111 @@ LANG_MAP = {
     "Bengali": "bn",
 }
 
+# ── Sidebar ────────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("""
+    <div style="text-align:center; padding: 1.2rem 0 0.8rem;">
+        <div style="font-size:2.6rem; line-height:1;">🛡</div>
+        <div style="font-size:1.1rem; font-weight:800; color:#e8eaf6; letter-spacing:-0.02em; margin-top:0.3rem;">Contract Shield</div>
+        <div style="font-size:0.7rem; color:#7888aa; margin-top:0.2rem; letter-spacing:0.04em;">RIGHTS PROTECTION TOOL</div>
+    </div>
+    <hr style="border-color:rgba(255,255,255,0.07); margin: 0.5rem 0 1.2rem;">
+    """, unsafe_allow_html=True)
+
+    st.markdown("<p style='color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.3rem;'>⚙️ Document Type</p>", unsafe_allow_html=True)
+    doc_type = st.selectbox(
+        "Document Type",
+        ["Labor Contract", "Rental Agreement", "Loan Document", "Other"],
+        label_visibility="collapsed",
+    )
+
+    st.markdown("<p style='color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin: 1rem 0 0.3rem;'>🌐 Output Language</p>", unsafe_allow_html=True)
+    language = st.radio(
+        "Output Language",
+        ["English", "Hindi", "Marathi", "Bengali"],
+        label_visibility="collapsed",
+    )
+
+    st.markdown("""
+    <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
+    <div style="background:#111c35; border-radius:10px; padding:1rem; border:1px solid rgba(255,255,255,0.07);">
+        <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 0.7rem;">📖 How to use</p>
+        <p style="font-size:0.82rem; color:#c8cfe8; margin:0; line-height:1.7;">
+          1️⃣ &nbsp;Paste your contract text<br>
+          2️⃣ &nbsp;Click <b style="color:#00ff88;">Analyze Contract</b><br>
+          3️⃣ &nbsp;Review flagged clauses<br>
+          4️⃣ &nbsp;Download your report
+        </p>
+    </div>
+    <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
+    <div style="text-align:center; font-size:0.75rem; color:#7888aa;">
+        🇮🇳 &nbsp;Built for social impact<br>
+        <span style="color:rgba(255,255,255,0.2);">v2.0 · Contract Shield</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ── Hero banner ────────────────────────────────────────────────────────────────
+st.markdown("""
+<div style="
+    background: linear-gradient(135deg, #0d1529 0%, #0f1e3a 50%, #0a1628 100%);
+    border: 1px solid rgba(0,255,136,0.12);
+    border-radius: 20px;
+    padding: 3rem 2.5rem 2.8rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+">
+  <!-- glow orbs -->
+  <div style="position:absolute;top:-60px;left:-60px;width:220px;height:220px;
+              background:radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%);
+              pointer-events:none;"></div>
+  <div style="position:absolute;bottom:-60px;right:-60px;width:220px;height:220px;
+              background:radial-gradient(circle, rgba(0,100,255,0.07) 0%, transparent 70%);
+              pointer-events:none;"></div>
+
+  <div style="font-size:4.5rem; line-height:1; margin-bottom:0.7rem; filter:drop-shadow(0 0 20px rgba(0,255,136,0.4));">🛡</div>
+  <h1 style="font-family:'Inter',sans-serif; font-size:3rem; font-weight:900;
+             background: linear-gradient(135deg, #ffffff 0%, #00ff88 60%, #00cc6a 100%);
+             -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+             margin:0 0 0.5rem; letter-spacing:-0.04em; line-height:1.1;">
+    Contract Shield
+  </h1>
+  <p style="font-size:1.1rem; color:#7888aa; margin:0 0 0.4rem; font-weight:400; letter-spacing:0.01em;">
+    Protecting <span style="color:#00ff88; font-weight:700;">450 million</span> informal workers in India
+  </p>
+  <p style="font-size:0.82rem; color:rgba(255,255,255,0.3); margin:0; letter-spacing:0.04em;">
+    AI-powered contract analysis · Free · Multilingual · Not legal advice
+  </p>
+</div>
+""", unsafe_allow_html=True)
+
+# ── Input section ──────────────────────────────────────────────────────────────
+st.markdown("""
+<p style="font-size:0.78rem; color:#7888aa; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.4rem;">
+  📋 &nbsp;Paste your contract text
+</p>
+""", unsafe_allow_html=True)
+
 contract_text = st.text_area(
-    "📋 Paste your contract text here:",
-    height=250,
-    placeholder="Paste any labor contract, rental agreement, or loan document here...",
-    key="contract_input"
+    "Contract text",
+    height=240,
+    placeholder="Paste any labor contract, rental agreement, or loan document here…",
+    key="contract_input",
+    label_visibility="collapsed",
 )
 
-col1, col2 = st.columns([2, 1])
+col1, col2 = st.columns([3, 1])
 with col1:
-    analyze_btn = st.button("🔍 Analyze Contract", type="primary", use_container_width=True)
+    analyze_btn = st.button("🔍  Analyze Contract", type="primary", use_container_width=True)
 with col2:
-    clear_btn = st.button("🗑 Clear", use_container_width=True)
+    clear_btn = st.button("🗑  Clear", use_container_width=True)
 
 if clear_btn:
     st.session_state["contract_input"] = ""
     st.rerun()
 
-with st.expander("📄 Load a sample contract for testing"):
+with st.expander("📄 Load a sample exploitative contract for testing"):
     sample_text = """EMPLOYMENT CONTRACT
 
 1. The employee agrees to work a minimum of 10 hours per day, 6 days a week, with no additional compensation for overtime as deemed fit by management.
@@ -72,39 +318,163 @@ with st.expander("📄 Load a sample contract for testing"):
 5. The employer may deduct from wages any amount as determined by management at sole discretion."""
 
     st.code(sample_text)
-    st.info("👆 Copy the text above and paste it into the main text area to test!")
+    st.info("👆 Copy the text above and paste it into the input area, then click Analyze Contract.")
 
+# ── Helper: circular gauge HTML ────────────────────────────────────────────────
+def render_gauge(score):
+    if score >= 80:
+        color = "#00ff88"
+        glow  = "rgba(0,255,136,0.35)"
+        label, emoji = "FAIR", "✅"
+    elif score >= 60:
+        color = "#ffd166"
+        glow  = "rgba(255,209,102,0.35)"
+        label, emoji = "CAUTION", "⚠️"
+    elif score >= 40:
+        color = "#ff9f43"
+        glow  = "rgba(255,159,67,0.35)"
+        label, emoji = "RISKY", "🟠"
+    else:
+        color = "#ff4444"
+        glow  = "rgba(255,68,68,0.35)"
+        label, emoji = "DANGER", "🔴"
+
+    # SVG circle math
+    radius          = 54
+    circumference   = 2 * 3.14159 * radius
+    filled          = circumference * score / 100
+    gap             = circumference - filled
+
+    return f"""
+<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1rem;">
+  <svg width="160" height="160" viewBox="0 0 160 160" style="filter:drop-shadow(0 0 16px {glow});">
+    <!-- Track -->
+    <circle cx="80" cy="80" r="{radius}" fill="none"
+            stroke="rgba(255,255,255,0.06)" stroke-width="12"/>
+    <!-- Arc -->
+    <circle cx="80" cy="80" r="{radius}" fill="none"
+            stroke="{color}" stroke-width="12"
+            stroke-linecap="round"
+            stroke-dasharray="{filled:.1f} {gap:.1f}"
+            transform="rotate(-90 80 80)"
+            style="transition: stroke-dasharray 0.8s ease;"/>
+    <!-- Score text -->
+    <text x="80" y="75" text-anchor="middle"
+          font-family="Inter,sans-serif" font-size="28" font-weight="900"
+          fill="{color}">{score}</text>
+    <text x="80" y="96" text-anchor="middle"
+          font-family="Inter,sans-serif" font-size="11" font-weight="500"
+          fill="rgba(255,255,255,0.45)" letter-spacing="2">OUT OF 100</text>
+  </svg>
+  <div style="margin-top:0.6rem; font-size:1rem; font-weight:700; color:{color};
+              letter-spacing:0.06em;">
+    {emoji} &nbsp;{label}
+  </div>
+</div>
+"""
+
+# ── Helper: risk card HTML ─────────────────────────────────────────────────────
+RISK_COLORS = {
+    "HIGH":   {"border": "#ff4444", "badge_bg": "rgba(255,68,68,0.15)",   "badge_text": "#ff4444"},
+    "MEDIUM": {"border": "#ff9f43", "badge_bg": "rgba(255,159,67,0.15)",  "badge_text": "#ff9f43"},
+    "LOW":    {"border": "#ffd166", "badge_bg": "rgba(255,209,102,0.15)", "badge_text": "#ffd166"},
+}
+
+def risk_card_header(i, risk, category, confidence, clause_id, match_source):
+    c = RISK_COLORS.get(risk, {"border": "#888", "badge_bg": "rgba(136,136,136,0.1)", "badge_text": "#888"})
+    return f"""
+<div style="
+    border-left: 4px solid {c['border']};
+    background: linear-gradient(90deg, rgba({_hex_to_rgb(c['border'])},0.06) 0%, transparent 60%);
+    border-radius: 0 8px 8px 0;
+    padding: 0.55rem 0.9rem;
+    margin-bottom: 0.3rem;
+    display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;
+">
+  <span style="background:{c['badge_bg']}; color:{c['badge_text']};
+               font-size:0.7rem; font-weight:700; letter-spacing:0.08em;
+               padding:0.15rem 0.55rem; border-radius:20px; border:1px solid {c['border']};">
+    {risk}
+  </span>
+  <span style="font-weight:600; font-size:0.9rem; color:#e8eaf6;">{category}</span>
+  <span style="margin-left:auto; font-size:0.72rem; color:#7888aa;">
+    Clause #{clause_id} &nbsp;·&nbsp; {match_source} &nbsp;·&nbsp; {confidence}% confidence
+  </span>
+</div>
+"""
+
+def _hex_to_rgb(h):
+    h = h.lstrip("#")
+    return ",".join(str(int(h[i:i+2], 16)) for i in (0, 2, 4))
+
+# ── Analysis ───────────────────────────────────────────────────────────────────
 if analyze_btn and contract_text.strip():
     cleaned_text = preprocess(contract_text)
-    findings = analyze_contract(cleaned_text)
-    score = calculate_score(findings)
+    findings     = analyze_contract(cleaned_text)
+    score        = calculate_score(findings)
     label, emoji = get_score_label(score)
 
-    st.divider()
-    st.subheader("📊 Analysis Results")
+    st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.8rem 0;'>", unsafe_allow_html=True)
+
+    # ── Results header ──
+    st.markdown("""
+    <h2 style="font-family:'Inter',sans-serif; font-size:1.5rem; font-weight:800;
+               color:#e8eaf6; margin:0 0 1.2rem; letter-spacing:-0.02em;">
+      📊 Analysis Results
+    </h2>
+    """, unsafe_allow_html=True)
 
     score_col, counts_col = st.columns([1, 2])
 
     with score_col:
-        st.metric(label="Fairness Score", value=f"{score}/100")
-        st.markdown(f"### {emoji} {label}")
+        st.markdown(render_gauge(score), unsafe_allow_html=True)
 
     with counts_col:
-        high = sum(1 for f in findings if f['risk'] == 'HIGH')
-        medium = sum(1 for f in findings if f['risk'] == 'MEDIUM')
-        low = sum(1 for f in findings if f['risk'] == 'LOW')
-        st.markdown(f"🔴 **{high}** HIGH risk clauses")
-        st.markdown(f"🟠 **{medium}** MEDIUM risk clauses")
-        st.markdown(f"🟡 **{low}** LOW risk clauses")
+        high   = sum(1 for f in findings if f["risk"] == "HIGH")
+        medium = sum(1 for f in findings if f["risk"] == "MEDIUM")
+        low    = sum(1 for f in findings if f["risk"] == "LOW")
+
+        # Summary label
+        full_label, _ = get_score_label(score)
+        st.markdown(f"""
+        <div style="background:var(--navy-3); border:1px solid rgba(255,255,255,0.07);
+                    border-radius:12px; padding:1.2rem 1.4rem; margin-bottom:1rem;">
+          <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
+                    text-transform:uppercase; margin:0 0 0.3rem;">Verdict</p>
+          <p style="font-size:1.05rem; font-weight:700; color:#e8eaf6; margin:0;">{full_label}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        c1, c2, c3 = st.columns(3)
+        def stat_box(col, count, label, color, glow_rgb):
+            col.markdown(f"""
+            <div style="background:rgba({glow_rgb},0.07); border:1px solid rgba({glow_rgb},0.25);
+                        border-radius:10px; padding:0.9rem 0.7rem; text-align:center;">
+              <div style="font-size:2rem; font-weight:900; color:rgb({glow_rgb}); line-height:1;">{count}</div>
+              <div style="font-size:0.7rem; color:rgba({glow_rgb},0.8); letter-spacing:0.06em;
+                          text-transform:uppercase; margin-top:0.2rem;">{label}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        stat_box(c1, high,   "HIGH risk",   "#ff4444", "255,68,68")
+        stat_box(c2, medium, "MEDIUM risk", "#ff9f43", "255,159,67")
+        stat_box(c3, low,    "LOW risk",    "#ffd166", "255,209,102")
+
         if not findings:
             st.success("✅ No exploitative clauses detected!")
 
-    st.divider()
+    # ── Flagged clauses ────────────────────────────────────────────────────────
+    st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.8rem 0;'>", unsafe_allow_html=True)
 
     if findings:
-        st.subheader("🚩 Flagged Clauses")
+        st.markdown("""
+        <h2 style="font-family:'Inter',sans-serif; font-size:1.5rem; font-weight:800;
+                   color:#e8eaf6; margin:0 0 1rem; letter-spacing:-0.02em;">
+          🚩 Flagged Clauses
+        </h2>
+        """, unsafe_allow_html=True)
 
-        lang_code = LANG_MAP.get(language)
+        lang_code    = LANG_MAP.get(language)
         translate_all = False
         if lang_code:
             translate_all = st.checkbox(
@@ -114,59 +484,140 @@ if analyze_btn and contract_text.strip():
             )
 
         for i, f in enumerate(findings, 1):
-            risk = f['risk']
-            icon = {"HIGH": "🔴", "MEDIUM": "🟠", "LOW": "🟡"}.get(risk, "⚪")
-            confidence = int(f.get('confidence', 0) * 100)
-            clause_id = f.get('clause_id', 'N/A')
-            clause_text = f.get('clause_text', '')
-            match_source = f.get('match_source', 'N/A')
+            risk         = f["risk"]
+            icon         = {"HIGH": "🔴", "MEDIUM": "🟠", "LOW": "🟡"}.get(risk, "⚪")
+            confidence   = int(f.get("confidence", 0) * 100)
+            clause_id    = f.get("clause_id", "N/A")
+            clause_text  = f.get("clause_text", "")
+            match_source = f.get("match_source", "N/A")
 
-            with st.expander(f"{icon} [{risk} RISK] {f['category']}", expanded=(risk == 'HIGH')):
-                st.caption(f"Clause #{clause_id} · Match source: {match_source} · Confidence: {confidence}%")
+            # Coloured card header outside expander
+            st.markdown(risk_card_header(i, risk, f["category"], confidence, clause_id, match_source),
+                        unsafe_allow_html=True)
+
+            with st.expander(f"{icon} [{risk}]  {f['category']}  —  clause #{clause_id}", expanded=(risk == "HIGH")):
                 if clause_text:
-                    st.write("Clause text:")
-                    st.code(clause_text)
-                st.write("Matched text:")
-                st.code(f['matched_text'])
+                    st.markdown("<p style='color:#7888aa; font-size:0.78rem; margin-bottom:0.3rem;'>CLAUSE TEXT</p>", unsafe_allow_html=True)
+                    st.code(clause_text, language=None)
 
-                explanation = f['explanation']
+                st.markdown("<p style='color:#7888aa; font-size:0.78rem; margin-bottom:0.3rem; margin-top:0.7rem;'>MATCHED PATTERN</p>", unsafe_allow_html=True)
+                st.code(f["matched_text"], language=None)
 
+                explanation = f["explanation"]
                 if lang_code and translate_all:
-                    with st.spinner(f"Translating to {language}..."):
+                    with st.spinner(f"Translating to {language}…"):
                         explanation = translate_text(explanation, target=lang_code)
 
-                st.info(f"💡 **Explanation:** {explanation}")
-                if f.get('suggestion'):
-                    st.success(f"✅ Suggested change: {f['suggestion']}")
+                color_map = {"HIGH": "#ff4444", "MEDIUM": "#ff9f43", "LOW": "#ffd166"}
+                exp_color  = color_map.get(risk, "#7888aa")
+                st.markdown(f"""
+                <div style="background:rgba(0,0,0,0.2); border-left:3px solid {exp_color};
+                            border-radius:0 8px 8px 0; padding:0.8rem 1rem; margin:0.8rem 0 0.5rem;">
+                  <span style="font-size:0.78rem; color:{exp_color}; font-weight:600;
+                               letter-spacing:0.06em;">💡 EXPLANATION</span><br>
+                  <span style="font-size:0.88rem; color:#c8cfe8; line-height:1.6;">{explanation}</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if f.get("suggestion"):
+                    st.markdown(f"""
+                    <div style="background:rgba(0,255,136,0.05); border-left:3px solid #00ff88;
+                                border-radius:0 8px 8px 0; padding:0.8rem 1rem; margin:0.5rem 0 0.3rem;">
+                      <span style="font-size:0.78rem; color:#00ff88; font-weight:600;
+                                   letter-spacing:0.06em;">✅ SUGGESTED FIX</span><br>
+                      <span style="font-size:0.88rem; color:#c8cfe8; line-height:1.6;">{f['suggestion']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
 
                 if language == "English":
-                    if st.button(f"🌐 Translate to Hindi", key=f"translate_{i}"):
-                        hindi = translate_text(f['explanation'], target='hi')
+                    if st.button(f"🌐 Translate explanation to Hindi", key=f"translate_{i}"):
+                        hindi = translate_text(f["explanation"], target="hi")
                         st.success(f"🇮🇳 **Hindi:** {hindi}")
 
-        st.subheader("🧭 What to do next")
-        st.markdown(
-            "1. Ask for edits to every HIGH-risk clause before signing.\n"
-            "2. Request objective language where terms say sole discretion or deemed fit.\n"
-            "3. Keep written proof of every negotiated change.\n"
-            "4. If HIGH-risk clauses remain, get legal review before signing."
-        )
+        # ── Next steps ────────────────────────────────────────────────────────
+        st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.8rem 0;'>", unsafe_allow_html=True)
+        st.markdown("""
+        <h2 style="font-family:'Inter',sans-serif; font-size:1.3rem; font-weight:800;
+                   color:#e8eaf6; margin:0 0 1rem; letter-spacing:-0.02em;">
+          🧭 What to do next
+        </h2>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
+          <div style="background:#0d1529; border:1px solid rgba(0,255,136,0.15); border-radius:10px; padding:1rem;">
+            <span style="color:#00ff88; font-size:1.3rem;">1️⃣</span>
+            <p style="color:#c8cfe8; font-size:0.88rem; margin:0.4rem 0 0; line-height:1.6;">
+              Ask for edits to every <b style='color:#ff4444;'>HIGH-risk</b> clause before signing.
+            </p>
+          </div>
+          <div style="background:#0d1529; border:1px solid rgba(0,255,136,0.15); border-radius:10px; padding:1rem;">
+            <span style="color:#00ff88; font-size:1.3rem;">2️⃣</span>
+            <p style="color:#c8cfe8; font-size:0.88rem; margin:0.4rem 0 0; line-height:1.6;">
+              Request objective language where terms say <i>sole discretion</i> or <i>deemed fit</i>.
+            </p>
+          </div>
+          <div style="background:#0d1529; border:1px solid rgba(0,255,136,0.15); border-radius:10px; padding:1rem;">
+            <span style="color:#00ff88; font-size:1.3rem;">3️⃣</span>
+            <p style="color:#c8cfe8; font-size:0.88rem; margin:0.4rem 0 0; line-height:1.6;">
+              Keep written proof of every negotiated change.
+            </p>
+          </div>
+          <div style="background:#0d1529; border:1px solid rgba(0,255,136,0.15); border-radius:10px; padding:1rem;">
+            <span style="color:#00ff88; font-size:1.3rem;">4️⃣</span>
+            <p style="color:#c8cfe8; font-size:0.88rem; margin:0.4rem 0 0; line-height:1.6;">
+              If HIGH-risk clauses remain, seek <b style='color:#00ff88;'>legal review</b> before signing.
+            </p>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.divider()
+        # ── Download ──────────────────────────────────────────────────────────
+        st.markdown("<div style='margin-top:1.4rem;'>", unsafe_allow_html=True)
         report = generate_text_report(findings, score, doc_type)
         st.download_button(
-            label="📥 Download Full Report (.txt)",
+            label="📥  Download Full Report (.txt)",
             data=report,
             file_name="contract_shield_report.txt",
-            mime="text/plain"
+            mime="text/plain",
+            use_container_width=True,
         )
+        st.markdown("</div>", unsafe_allow_html=True)
 
     else:
-        st.success("✅ No high-risk clauses detected. The contract appears relatively fair.")
-        st.info("💡 This does not mean it is perfect. Consider having a legal professional review it.")
+        st.markdown("""
+        <div style="background:rgba(0,255,136,0.06); border:1px solid rgba(0,255,136,0.25);
+                    border-radius:12px; padding:1.8rem; text-align:center; margin-top:1rem;">
+          <div style="font-size:3rem;">✅</div>
+          <h3 style="color:#00ff88; margin:0.5rem 0 0.3rem; font-size:1.2rem;">No exploitative clauses detected</h3>
+          <p style="color:#7888aa; font-size:0.88rem; margin:0;">
+            The contract appears relatively fair. This does not guarantee it is perfect —
+            consider having a legal professional review it regardless.
+          </p>
+        </div>
+        """, unsafe_allow_html=True)
 
 elif analyze_btn and not contract_text.strip():
-    st.warning("⚠️ Please paste some contract text before analyzing.")
+    st.markdown("""
+    <div style="background:rgba(255,159,67,0.08); border:1px solid rgba(255,159,67,0.3);
+                border-radius:10px; padding:1rem 1.3rem; margin-top:0.8rem;">
+      ⚠️ &nbsp;<span style="color:#ff9f43; font-weight:600;">Please paste some contract text before analyzing.</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-st.divider()
-st.caption("⚠️ Disclaimer: Contract Shield is not legal advice. Always consult a qualified lawyer. | Built for social impact 🇮🇳")
+# ── Footer ─────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div style="
+    margin-top: 4rem;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    padding: 2rem 0 1.5rem;
+    text-align: center;
+">
+  <div style="font-size:1.8rem; margin-bottom:0.5rem;">🛡</div>
+  <p style="color:#7888aa; font-size:0.78rem; line-height:1.8; margin:0;">
+    <b style="color:rgba(255,255,255,0.35);">Contract Shield</b> &nbsp;·&nbsp;
+    Built for social impact 🇮🇳 &nbsp;·&nbsp;
+    <span style="color:rgba(255,68,68,0.7);">Not legal advice</span>
+  </p>
+  <p style="color:rgba(255,255,255,0.18); font-size:0.72rem; margin:0.4rem 0 0;">
+    ⚠️ This tool provides automated analysis only. Always consult a qualified lawyer before signing any contract.
+  </p>
+</div>
+""", unsafe_allow_html=True)
