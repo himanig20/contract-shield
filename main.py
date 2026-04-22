@@ -1,6 +1,7 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
+import pdfplumber
 
 # Load .env so GROQ_API_KEY is available in os.environ
 load_dotenv()
@@ -374,33 +375,27 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Input section ──────────────────────────────────────────────────────────────
-st.markdown("""
-<p style="font-size:0.78rem; color:#7888aa; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.4rem;">
-  📋 &nbsp;Paste your contract text
-</p>
-""", unsafe_allow_html=True)
+# ── Input section (tabbed) ─────────────────────────────────────────────────────
+tab_paste, tab_pdf = st.tabs(["📋  Paste Text", "📄  Upload PDF"])
 
-contract_text = st.text_area(
-    "Contract text",
-    height=240,
-    placeholder="Paste any labor contract, rental agreement, or loan document here…",
-    key="contract_input",
-    label_visibility="collapsed",
-)
+with tab_paste:
+    st.markdown("""
+    <p style="font-size:0.78rem; color:#7888aa; letter-spacing:0.07em;
+              text-transform:uppercase; margin-bottom:0.4rem;">
+      📋 &nbsp;Paste your contract text
+    </p>
+    """, unsafe_allow_html=True)
 
-col1, col2 = st.columns([3, 1])
-with col1:
-    analyze_btn = st.button("🔍  Analyze Contract", type="primary", use_container_width=True)
-with col2:
-    clear_btn = st.button("🗑  Clear", use_container_width=True)
+    contract_text = st.text_area(
+        "Contract text",
+        height=240,
+        placeholder="Paste any labor contract, rental agreement, or loan document here…",
+        key="contract_input",
+        label_visibility="collapsed",
+    )
 
-if clear_btn:
-    st.session_state["contract_input"] = ""
-    st.rerun()
-
-with st.expander("📄 Load a sample exploitative contract for testing"):
-    sample_text = """EMPLOYMENT CONTRACT
+    with st.expander("📄 Load a sample exploitative contract for testing"):
+        sample_text = """EMPLOYMENT CONTRACT
 
 1. The employee agrees to work a minimum of 10 hours per day, 6 days a week, with no additional compensation for overtime as deemed fit by management.
 
@@ -412,8 +407,82 @@ with st.expander("📄 Load a sample exploitative contract for testing"):
 
 5. The employer may deduct from wages any amount as determined by management at sole discretion."""
 
-    st.code(sample_text)
-    st.info("👆 Copy the text above and paste it into the input area, then click Analyze Contract.")
+        st.code(sample_text)
+        st.info("👆 Copy the text above and paste it into the main text area to test!")
+
+with tab_pdf:
+    st.markdown("""
+    <p style="font-size:0.78rem; color:#7888aa; letter-spacing:0.07em;
+              text-transform:uppercase; margin-bottom:0.4rem;">
+      📄 &nbsp;Upload a contract PDF
+    </p>
+    """, unsafe_allow_html=True)
+
+    uploaded_file = st.file_uploader(
+        "Upload PDF",
+        type=["pdf"],
+        label_visibility="collapsed",
+        key="pdf_upload",
+    )
+
+    if uploaded_file is not None:
+        try:
+            pdf_pages = []
+            with pdfplumber.open(uploaded_file) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        pdf_pages.append(page_text)
+
+            if pdf_pages:
+                contract_text = "\n\n".join(pdf_pages)
+                st.markdown(f"""
+                <div style="background:rgba(0,255,136,0.06); border:1px solid rgba(0,255,136,0.2);
+                            border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.8rem;
+                            font-size:0.85rem; color:#00ff88;">
+                  ✅ Extracted <b>{len(pdf_pages)} page{'s' if len(pdf_pages) != 1 else ''}</b>
+                  · {len(contract_text):,} characters
+                </div>
+                """, unsafe_allow_html=True)
+
+                with st.expander("👁 Preview extracted text", expanded=False):
+                    st.text(contract_text[:3000] + ("\n\n… [truncated]" if len(contract_text) > 3000 else ""))
+            else:
+                contract_text = ""
+                st.markdown("""
+                <div style="background:rgba(255,68,68,0.08); border:1px solid rgba(255,68,68,0.25);
+                            border-radius:10px; padding:1rem 1.2rem; text-align:center;">
+                  <div style="font-size:1.5rem;">📛</div>
+                  <p style="color:#ff4444; font-weight:600; font-size:0.9rem; margin:0.4rem 0 0.2rem;">
+                    No readable text found in this PDF
+                  </p>
+                  <p style="color:#7888aa; font-size:0.8rem; margin:0;">
+                    This may be a scanned document. Try pasting the text manually in the Paste Text tab,
+                    or use an OCR tool first.
+                  </p>
+                </div>
+                """, unsafe_allow_html=True)
+        except Exception as e:
+            contract_text = ""
+            st.markdown(f"""
+            <div style="background:rgba(255,68,68,0.08); border:1px solid rgba(255,68,68,0.25);
+                        border-radius:10px; padding:1rem 1.2rem;">
+              ⚠️ <span style="color:#ff4444; font-weight:600;">Error reading PDF:</span>
+              <span style="color:#c8cfe8;">{e}</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+# ── Action buttons ─────────────────────────────────────────────────────────────
+col1, col2 = st.columns([3, 1])
+with col1:
+    analyze_btn = st.button("🔍  Analyze Contract", type="primary", use_container_width=True)
+with col2:
+    clear_btn = st.button("🗑  Clear", use_container_width=True)
+
+if clear_btn:
+    st.session_state["contract_input"] = ""
+    st.session_state["pdf_upload"] = None
+    st.rerun()
 
 # ── Helper: circular gauge HTML ────────────────────────────────────────────────
 def render_gauge(score):
