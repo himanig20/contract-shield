@@ -676,184 +676,15 @@ if analyze_btn and contract_text.strip():
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ── AI Chatbot ────────────────────────────────────────────────────────
-        st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:2rem 0;'>", unsafe_allow_html=True)
-        st.markdown("""
-        <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.5rem;">
-          <div style="font-size:1.6rem; filter:drop-shadow(0 0 10px rgba(0,255,136,0.4));">🤖</div>
-          <div>
-            <h2 style="font-family:'Inter',sans-serif; font-size:1.4rem; font-weight:800;
-                       color:#e8eaf6; margin:0; letter-spacing:-0.02em;">Contract Shield AI</h2>
-            <p style="color:#7888aa; font-size:0.78rem; margin:0;">Ask anything about your contract · Powered by Llama 3</p>
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Store analysis context for the floating widget
+        _findings_for_widget = "\n".join(
+            f"- [{f['risk']}] {f['category']}: {f['explanation'][:120]}"
+            for f in findings
+        ) or "No risky clauses were flagged."
+        st.session_state["cs_findings"] = _findings_for_widget
+        st.session_state["cs_score"]    = score
+        st.session_state["cs_analyzed"] = True
 
-        # Session state for chat history, keyed to the current analysis run
-        if "chat_history" not in st.session_state:
-            st.session_state.chat_history = []
-        if "chat_contract_snapshot" not in st.session_state:
-            st.session_state.chat_contract_snapshot = ""
-
-        # Reset chat if a new contract was analyzed
-        contract_snapshot = contract_text[:120]
-        if st.session_state.chat_contract_snapshot != contract_snapshot:
-            st.session_state.chat_history = []
-            st.session_state.chat_contract_snapshot = contract_snapshot
-
-        # Prefer .env key; fall back to the sidebar override field
-        _env_key = os.environ.get("GROQ_API_KEY", "").strip()
-        groq_api_key = (
-            _env_key
-            if _env_key and not _env_key.startswith("your_")
-            else st.session_state.get("groq_api_key_input", "")
-        )
-
-        if not groq_api_key:
-            st.markdown("""
-            <div style="background:rgba(255,159,67,0.07); border:1px solid rgba(255,159,67,0.25);
-                        border-radius:12px; padding:1.2rem 1.4rem; text-align:center;">
-              <div style="font-size:1.8rem;">🔑</div>
-              <p style="color:#ff9f43; font-size:0.88rem; margin:0.4rem 0 0; font-weight:600;">
-                Enter your Groq API key in the sidebar to unlock the AI assistant.
-              </p>
-              <p style="color:#7888aa; font-size:0.78rem; margin:0.3rem 0 0;">
-                Get a free key at <a href="https://console.groq.com/keys" target="_blank"
-                style="color:#ff9f43;">console.groq.com</a>
-              </p>
-            </div>
-            """, unsafe_allow_html=True)
-        elif not GROQ_AVAILABLE:
-            st.error("The `groq` Python package is not installed. Run: `pip install groq`")
-        else:
-            # ── Build system prompt ──
-            findings_summary = "\n".join(
-                f"- [{f['risk']}] {f['category']}: {f['explanation'][:120]}"
-                for f in findings
-            ) or "No risky clauses were flagged."
-
-            system_prompt = (
-                "You are Contract Shield AI, a legal assistant helping informal workers in India "
-                "understand their contracts. You have analyzed this contract and found these issues:\n"
-                f"{findings_summary}\n"
-                f"The fairness score is {score}/100. "
-                "Answer questions simply and clearly. Always mention relevant Indian labor laws. "
-                "Never give formal legal advice but explain rights in plain language."
-            )
-
-            # ── Hindi toggle ──
-            hindi_mode = st.checkbox(
-                "🇮🇳 Ask in Hindi (auto-translate question & answer)",
-                key="chat_hindi_toggle",
-            )
-
-            # ── Render existing chat history ──
-            if st.session_state.chat_history:
-                st.markdown('<div class="chat-wrap">', unsafe_allow_html=True)
-                for turn in st.session_state.chat_history:
-                    role  = turn["role"]
-                    text  = turn["content"]
-                    if role == "user":
-                        st.markdown(f"""
-                        <div style="display:flex; justify-content:flex-end;">
-                          <div class="bubble-user">
-                            <div class="bubble-label" style="text-align:right;">You</div>
-                            {text}
-                          </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"""
-                        <div style="display:flex; justify-content:flex-start;">
-                          <div class="bubble-bot">
-                            <div class="bubble-label" style="color:#00ff88;">🤖 Contract Shield AI</div>
-                            {text}
-                          </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-            # ── Chat input row ──
-            chat_col1, chat_col2 = st.columns([5, 1])
-            with chat_col1:
-                user_question = st.text_input(
-                    "Ask a question",
-                    placeholder="e.g. Can they deduct my salary without my consent?",
-                    key="chat_input_box",
-                    label_visibility="collapsed",
-                )
-            with chat_col2:
-                send_btn = st.button("Send ✈️", type="primary", use_container_width=True, key="chat_send")
-
-            clear_chat_btn = st.button("🗑 Clear chat history", key="clear_chat", use_container_width=False)
-            if clear_chat_btn:
-                st.session_state.chat_history = []
-                st.rerun()
-
-            if send_btn and user_question.strip():
-                display_question = user_question.strip()
-                api_question     = user_question.strip()
-
-                # Optionally translate question to English for the API
-                if hindi_mode:
-                    with st.spinner("Translating your question…"):
-                        api_question = translate_text(display_question, target="en") or api_question
-
-                # Append user message to history (display version)
-                st.session_state.chat_history.append({"role": "user", "content": display_question})
-
-                # Build API messages from history (use English for API)
-                api_messages = [{"role": "system", "content": system_prompt}]
-                for turn in st.session_state.chat_history[:-1]:  # exclude the just-added user msg
-                    api_messages.append({"role": turn["role"], "content": turn["content"]})
-                api_messages.append({"role": "user", "content": api_question})
-
-                # ── Call Groq API ──
-                with st.spinner("Contract Shield AI is thinking…"):
-                    try:
-                        client   = GroqClient(api_key=groq_api_key)
-                        response = client.chat.completions.create(
-                            model="llama3-8b-8192",
-                            messages=api_messages,
-                            max_tokens=512,
-                            temperature=0.55,
-                        )
-                        bot_answer = response.choices[0].message.content.strip()
-
-                        # Translate answer to Hindi if toggle is on
-                        if hindi_mode:
-                            with st.spinner("Translating answer to Hindi…"):
-                                bot_answer = translate_text(bot_answer, target="hi") or bot_answer
-
-                    except Exception as exc:
-                        bot_answer = f"⚠️ Error contacting Groq API: {exc}"
-
-                st.session_state.chat_history.append({"role": "assistant", "content": bot_answer})
-                st.rerun()
-
-            # ── Suggested quick questions ──
-            if not st.session_state.chat_history:
-                st.markdown("""
-                <p style="color:#7888aa; font-size:0.75rem; letter-spacing:0.06em;
-                           text-transform:uppercase; margin:1rem 0 0.5rem;">💡 Try asking</p>
-                """, unsafe_allow_html=True)
-                suggestions = [
-                    "What's the most dangerous clause in this contract?",
-                    "Can my employer deduct my salary without consent?",
-                    "What does the Industrial Disputes Act say about notice periods?",
-                    "Is this penalty clause legal in India?",
-                ]
-                scols = st.columns(2)
-                for idx, suggestion in enumerate(suggestions):
-                    with scols[idx % 2]:
-                        st.markdown(f"""
-                        <div style="background:#0d1529; border:1px solid rgba(0,255,136,0.12);
-                                    border-radius:8px; padding:0.65rem 0.9rem; margin-bottom:0.5rem;
-                                    font-size:0.82rem; color:#c8cfe8; cursor:pointer;
-                                    transition:border-color 0.2s;">
-                          💬 {suggestion}
-                        </div>
-                        """, unsafe_allow_html=True)
 
     else:
         st.markdown("""
@@ -875,6 +706,335 @@ elif analyze_btn and not contract_text.strip():
       ⚠️ &nbsp;<span style="color:#ff9f43; font-weight:600;">Please paste some contract text before analyzing.</span>
     </div>
     """, unsafe_allow_html=True)
+
+# ── Floating AI Chat Widget ─────────────────────────────────────────────────────
+_widget_key      = os.environ.get("GROQ_API_KEY", "").strip()
+_widget_key      = _widget_key if _widget_key and not _widget_key.startswith("your_") else ""
+_widget_findings = st.session_state.get("cs_findings", "")
+_widget_score    = st.session_state.get("cs_score", "N/A")
+_widget_analyzed = st.session_state.get("cs_analyzed", False)
+
+_greeting = (
+    f"Hi! 👋 I've analyzed your contract. Fairness score: **{_widget_score}/100**. "
+    "Ask me anything about the flagged clauses!"
+    if _widget_analyzed
+    else "Hi! 👋 I'm Contract Shield AI. Paste and analyze a contract above, then I can answer your questions about it."
+)
+
+_system_prompt = (
+    "You are Contract Shield AI, a legal assistant helping informal workers in India understand their contracts. "
+    + (
+        f"You have analyzed this contract and found these issues:\n{_widget_findings}\n"
+        f"The fairness score is {_widget_score}/100. "
+        if _widget_analyzed else ""
+    )
+    + "Answer questions simply and clearly. Always mention relevant Indian labor laws. "
+    "Never give formal legal advice but explain rights in plain language."
+)
+
+st.markdown(f"""
+<style>
+/* ── Floating widget ── */
+#cs-fab {{
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00ff88, #00cc6a);
+  box-shadow: 0 6px 28px rgba(0,255,136,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 9999;
+  transition: transform 0.22s, box-shadow 0.22s;
+  border: none;
+  font-size: 1.6rem;
+}}
+#cs-fab:hover {{
+  transform: scale(1.1) translateY(-3px);
+  box-shadow: 0 10px 36px rgba(0,255,136,0.6);
+}}
+.cs-pulse {{
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #ff4444;
+  border: 2px solid #0a0f1e;
+  animation: csPulse 2s infinite;
+}}
+@keyframes csPulse {{
+  0%,100% {{ transform: scale(1); opacity:1; }}
+  50% {{ transform: scale(1.4); opacity:0.6; }}
+}}
+#cs-panel {{
+  position: fixed;
+  bottom: 6.5rem;
+  right: 1.5rem;
+  width: 370px;
+  height: 510px;
+  background: #0d1529;
+  border: 1px solid rgba(0,255,136,0.2);
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,255,136,0.06);
+  display: flex;
+  flex-direction: column;
+  z-index: 9998;
+  transform: translateY(20px) scale(0.94);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1);
+  overflow: hidden;
+}}
+#cs-panel.cs-open {{
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  pointer-events: all;
+}}
+.cs-ph {{
+  background: linear-gradient(135deg,#111c35,#0f1a30);
+  padding: 0.9rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0,255,136,0.1);
+  flex-shrink: 0;
+}}
+.cs-ph-info {{ display:flex; align-items:center; gap:0.6rem; }}
+.cs-ph-icon {{ font-size:1.4rem; filter:drop-shadow(0 0 8px rgba(0,255,136,0.5)); }}
+.cs-ph-title {{ font-family:'Inter',sans-serif; font-weight:800; font-size:0.9rem; color:#e8eaf6; }}
+.cs-ph-sub {{ font-size:0.65rem; color:#7888aa; margin-top:1px; }}
+.cs-close {{
+  background:rgba(255,255,255,0.06); border:none; color:#7888aa;
+  border-radius:8px; width:28px; height:28px; cursor:pointer;
+  font-size:0.95rem; display:flex; align-items:center; justify-content:center;
+  transition: background 0.18s,color 0.18s;
+}}
+.cs-close:hover {{ background:rgba(255,68,68,0.15); color:#ff4444; }}
+#cs-msgs {{
+  flex:1; overflow-y:auto; padding:0.9rem;
+  display:flex; flex-direction:column; gap:0.7rem;
+  scroll-behavior:smooth;
+}}
+#cs-msgs::-webkit-scrollbar {{ width:4px; }}
+#cs-msgs::-webkit-scrollbar-thumb {{ background:#162040; border-radius:10px; }}
+.cs-bot {{
+  align-self:flex-start;
+  background:#111c35; border:1px solid rgba(0,255,136,0.15);
+  border-radius:14px 14px 14px 4px;
+  padding:0.6rem 0.8rem; max-width:88%;
+  font-size:0.82rem; line-height:1.6; color:#e8eaf6;
+}}
+.cs-usr {{
+  align-self:flex-end;
+  background:linear-gradient(135deg,#00ff88,#00cc6a);
+  border-radius:14px 14px 4px 14px;
+  padding:0.6rem 0.8rem; max-width:82%;
+  font-size:0.82rem; line-height:1.6; color:#0a0f1e; font-weight:600;
+}}
+.cs-lbl {{
+  font-size:0.6rem; font-weight:700; letter-spacing:0.07em;
+  text-transform:uppercase; margin-bottom:0.2rem; opacity:0.65;
+}}
+.cs-typing {{
+  align-self:flex-start;
+  background:#111c35; border:1px solid rgba(0,255,136,0.15);
+  border-radius:14px 14px 14px 4px;
+  padding:0.65rem 0.9rem; display:flex; gap:5px; align-items:center;
+}}
+.cs-dot {{
+  width:7px; height:7px; background:#00ff88; border-radius:50%;
+  animation:csDot 1.2s infinite;
+}}
+.cs-dot:nth-child(2) {{ animation-delay:.2s; }}
+.cs-dot:nth-child(3) {{ animation-delay:.4s; }}
+@keyframes csDot {{
+  0%,80%,100% {{ transform:scale(.6); opacity:.4; }}
+  40%          {{ transform:scale(1); opacity:1; }}
+}}
+#cs-sugg {{ padding:0 0.9rem 0.5rem; display:flex; flex-direction:column; gap:0.35rem; }}
+.cs-sugg-chip {{
+  background:#0a1220; border:1px solid rgba(0,255,136,0.1);
+  border-radius:8px; padding:0.4rem 0.7rem;
+  font-size:0.76rem; color:#c8cfe8; cursor:pointer;
+  transition:border-color .18s,background .18s;
+}}
+.cs-sugg-chip:hover {{ border-color:rgba(0,255,136,.35); background:rgba(0,255,136,.05); }}
+.cs-hindi-bar {{
+  padding:0.35rem 0.9rem; display:flex; align-items:center; gap:0.5rem;
+  background:#0a0f1e; border-top:1px solid rgba(255,255,255,.04); flex-shrink:0;
+}}
+.cs-hindi-lbl {{ font-size:0.7rem; color:#7888aa; }}
+.cs-toggle {{
+  width:32px; height:17px; background:#162040; border-radius:10px;
+  position:relative; cursor:pointer; border:none; transition:background .2s; flex-shrink:0;
+}}
+.cs-toggle.on {{ background:#00cc6a; }}
+.cs-toggle::after {{
+  content:''; position:absolute; top:2px; left:2px;
+  width:13px; height:13px; background:white; border-radius:50%; transition:left .2s;
+}}
+.cs-toggle.on::after {{ left:17px; }}
+.cs-input-row {{
+  padding:0.65rem; border-top:1px solid rgba(255,255,255,.06);
+  display:flex; gap:0.45rem; flex-shrink:0; background:#0a0f1e;
+}}
+#cs-input {{
+  flex:1; background:#111c35; border:1px solid rgba(0,255,136,.2);
+  border-radius:10px; color:#e8eaf6; font-family:'Inter',sans-serif;
+  font-size:0.83rem; padding:0.5rem 0.8rem; outline:none; transition:border-color .18s;
+}}
+#cs-input:focus {{ border-color:#00ff88; }}
+#cs-input::placeholder {{ color:#7888aa; }}
+#cs-send {{
+  background:linear-gradient(135deg,#00ff88,#00cc6a); border:none; border-radius:10px;
+  color:#0a0f1e; font-weight:700; font-size:1rem; width:38px; cursor:pointer;
+  transition:transform .18s,box-shadow .18s; flex-shrink:0;
+}}
+#cs-send:hover {{ transform:scale(1.08); box-shadow:0 4px 14px rgba(0,255,136,.4); }}
+</style>
+
+<!-- FAB -->
+<button id="cs-fab" onclick="csToggle()" title="Ask Contract Shield AI">
+  🤖
+  <div class="cs-pulse"></div>
+</button>
+
+<!-- Chat panel -->
+<div id="cs-panel">
+  <div class="cs-ph">
+    <div class="cs-ph-info">
+      <div class="cs-ph-icon">🤖</div>
+      <div>
+        <div class="cs-ph-title">Contract Shield AI</div>
+        <div class="cs-ph-sub">Llama 3 · {"Contract analyzed ✅" if _widget_analyzed else "Analyze a contract first"}</div>
+      </div>
+    </div>
+    <button class="cs-close" onclick="csToggle()">✕</button>
+  </div>
+
+  <div id="cs-msgs">
+    <div class="cs-bot">
+      <div class="cs-lbl" style="color:#00ff88;">Contract Shield AI</div>
+      {_greeting}
+    </div>
+  </div>
+
+  <div id="cs-sugg">
+    <div class="cs-sugg-chip" onclick="csAsk(this)">💬 What's the most dangerous clause here?</div>
+    <div class="cs-sugg-chip" onclick="csAsk(this)">💬 Can my employer deduct salary without consent?</div>
+    <div class="cs-sugg-chip" onclick="csAsk(this)">💬 Is this penalty clause legal in India?</div>
+  </div>
+
+  <div class="cs-hindi-bar">
+    <span class="cs-hindi-lbl">🇮🇳 Hindi mode</span>
+    <button class="cs-toggle" id="cs-htoggle" onclick="csToggleHindi()"></button>
+    <span class="cs-hindi-lbl" id="cs-hstatus">off</span>
+  </div>
+
+  <div class="cs-input-row">
+    <input id="cs-input" type="text" placeholder="Ask about your contract…"
+           onkeydown="if(event.key==='Enter')csSend()"/>
+    <button id="cs-send" onclick="csSend()">➤</button>
+  </div>
+</div>
+
+<script>
+(function(){{
+  const API_KEY    = {repr(_widget_key)};
+  const SYS_PROMPT = {repr(_system_prompt)};
+  let panelOpen = false, hindiMode = false, history = [];
+
+  window.csToggle = function() {{
+    panelOpen = !panelOpen;
+    document.getElementById('cs-panel').classList.toggle('cs-open', panelOpen);
+    if (panelOpen) setTimeout(() => document.getElementById('cs-input').focus(), 300);
+  }};
+
+  window.csToggleHindi = function() {{
+    hindiMode = !hindiMode;
+    document.getElementById('cs-htoggle').classList.toggle('on', hindiMode);
+    document.getElementById('cs-hstatus').textContent = hindiMode ? 'on' : 'off';
+  }};
+
+  window.csAsk = function(el) {{
+    const txt = el.textContent.replace(/^💬\s*/, '').trim();
+    document.getElementById('cs-input').value = txt;
+    document.getElementById('cs-sugg').style.display = 'none';
+    csSend();
+  }};
+
+  function addBubble(cls, html, labelColor) {{
+    const wrap = document.getElementById('cs-msgs');
+    const d = document.createElement('div');
+    d.className = cls;
+    const lbl = document.createElement('div');
+    lbl.className = 'cs-lbl';
+    lbl.style.color = labelColor;
+    lbl.textContent = cls === 'cs-usr' ? 'You' : 'Contract Shield AI';
+    const body = document.createElement('div');
+    body.innerHTML = html.replace(/\n/g, '<br>');
+    d.appendChild(lbl); d.appendChild(body);
+    wrap.appendChild(d);
+    wrap.scrollTop = wrap.scrollHeight;
+    document.getElementById('cs-sugg').style.display = 'none';
+    return d;
+  }}
+
+  function showTyping() {{
+    const wrap = document.getElementById('cs-msgs');
+    const d = document.createElement('div');
+    d.className = 'cs-typing'; d.id = 'cs-typing';
+    d.innerHTML = '<div class="cs-dot"></div><div class="cs-dot"></div><div class="cs-dot"></div>';
+    wrap.appendChild(d); wrap.scrollTop = wrap.scrollHeight;
+  }}
+  function hideTyping() {{ const el = document.getElementById('cs-typing'); if(el) el.remove(); }}
+
+  async function translate(text, target) {{
+    try {{
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${{target}}&dt=t&q=${{encodeURIComponent(text)}}`;
+      const d = await (await fetch(url)).json();
+      return d[0].map(x=>x[0]).join('');
+    }} catch(e) {{ return text; }}
+  }}
+
+  window.csSend = async function() {{
+    if (!API_KEY) {{
+      addBubble('cs-bot', '⚠️ No Groq API key found. Add it to your <code>.env</code> file and restart.', '#ff4444');
+      return;
+    }}
+    const inp = document.getElementById('cs-input');
+    let txt = inp.value.trim(); if (!txt) return; inp.value = '';
+    let displayTxt = txt, apiTxt = txt;
+    if (hindiMode) apiTxt = await translate(txt, 'en');
+    addBubble('cs-usr', displayTxt, 'rgba(10,15,30,0.55)');
+    history.push({{role:'user', content:apiTxt}});
+    showTyping();
+    try {{
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {{
+        method:'POST',
+        headers:{{'Authorization':`Bearer ${{API_KEY}}`,'Content-Type':'application/json'}},
+        body: JSON.stringify({{model:'llama3-8b-8192', temperature:0.55, max_tokens:512,
+          messages:[{{role:'system',content:SYS_PROMPT}},...history.slice(-12)]}})
+      }});
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message);
+      let bot = data.choices[0].message.content.trim();
+      history.push({{role:'assistant', content:bot}});
+      if (hindiMode) bot = await translate(bot, 'hi');
+      hideTyping();
+      addBubble('cs-bot', bot, '#00ff88');
+    }} catch(e) {{
+      hideTyping();
+      addBubble('cs-bot', `⚠️ Error: ${{e.message}}`, '#ff4444');
+    }}
+  }};
+}})();
+</script>
+""", unsafe_allow_html=True)
 
 # ── Footer ─────────────────────────────────────────────────────────────────────
 st.markdown("""
