@@ -972,6 +972,7 @@ if analyze_btn and contract_text.strip():
         st.session_state["cs_analyzed"] = True
 
 
+
     else:
         st.markdown("""
         <div style="background:rgba(0,255,136,0.06); border:1px solid rgba(0,255,136,0.25);
@@ -994,6 +995,8 @@ elif analyze_btn and not contract_text.strip():
     """, unsafe_allow_html=True)
 
 # ── Floating AI Chat Widget ─────────────────────────────────────────────────────
+import streamlit.components.v1 as components
+
 _widget_key      = os.environ.get("GROQ_API_KEY", "").strip()
 _widget_key      = _widget_key if _widget_key and not _widget_key.startswith("your_") else ""
 _widget_findings = st.session_state.get("cs_findings", "")
@@ -1018,209 +1021,152 @@ _system_prompt = (
     "Never give formal legal advice but explain rights in plain language."
 )
 
-st.markdown(f"""
+_sub_status = "Contract analyzed ✅" if _widget_analyzed else "Analyze a contract first"
+
+_widget_html = f"""
 <style>
-/* ── Floating widget ── */
-#cs-fab {{
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  width: 62px;
-  height: 62px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #00ff88, #00cc6a);
-  box-shadow: 0 6px 28px rgba(0,255,136,0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 9999;
-  transition: transform 0.22s, box-shadow 0.22s;
-  border: none;
-  font-size: 1.6rem;
-}}
-#cs-fab:hover {{
-  transform: scale(1.1) translateY(-3px);
-  box-shadow: 0 10px 36px rgba(0,255,136,0.6);
-}}
-.cs-pulse {{
-  position: absolute;
-  top: -3px; right: -3px;
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  background: #ff4444;
-  border: 2px solid #0a0f1e;
-  animation: csPulse 2s infinite;
-}}
-@keyframes csPulse {{
-  0%,100% {{ transform: scale(1); opacity:1; }}
-  50% {{ transform: scale(1.4); opacity:0.6; }}
-}}
-#cs-panel {{
-  position: fixed;
-  bottom: 6.5rem;
-  right: 1.5rem;
-  width: 370px;
-  height: 510px;
-  background: #0d1529;
-  border: 1px solid rgba(0,255,136,0.2);
-  border-radius: 20px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,255,136,0.06);
-  display: flex;
-  flex-direction: column;
-  z-index: 9998;
-  transform: translateY(20px) scale(0.94);
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1);
-  overflow: hidden;
-}}
-#cs-panel.cs-open {{
-  transform: translateY(0) scale(1);
-  opacity: 1;
-  pointer-events: all;
-}}
-.cs-ph {{
-  background: linear-gradient(135deg,#111c35,#0f1a30);
-  padding: 0.9rem 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(0,255,136,0.1);
-  flex-shrink: 0;
-}}
-.cs-ph-info {{ display:flex; align-items:center; gap:0.6rem; }}
-.cs-ph-icon {{ font-size:1.4rem; filter:drop-shadow(0 0 8px rgba(0,255,136,0.5)); }}
-.cs-ph-title {{ font-family:'Inter',sans-serif; font-weight:800; font-size:0.9rem; color:#e8eaf6; }}
-.cs-ph-sub {{ font-size:0.65rem; color:#7888aa; margin-top:1px; }}
-.cs-close {{
-  background:rgba(255,255,255,0.06); border:none; color:#7888aa;
-  border-radius:8px; width:28px; height:28px; cursor:pointer;
-  font-size:0.95rem; display:flex; align-items:center; justify-content:center;
-  transition: background 0.18s,color 0.18s;
-}}
-.cs-close:hover {{ background:rgba(255,68,68,0.15); color:#ff4444; }}
-#cs-msgs {{
-  flex:1; overflow-y:auto; padding:0.9rem;
-  display:flex; flex-direction:column; gap:0.7rem;
-  scroll-behavior:smooth;
-}}
-#cs-msgs::-webkit-scrollbar {{ width:4px; }}
-#cs-msgs::-webkit-scrollbar-thumb {{ background:#162040; border-radius:10px; }}
-.cs-bot {{
-  align-self:flex-start;
-  background:#111c35; border:1px solid rgba(0,255,136,0.15);
-  border-radius:14px 14px 14px 4px;
-  padding:0.6rem 0.8rem; max-width:88%;
-  font-size:0.82rem; line-height:1.6; color:#e8eaf6;
-}}
-.cs-usr {{
-  align-self:flex-end;
-  background:linear-gradient(135deg,#00ff88,#00cc6a);
-  border-radius:14px 14px 4px 14px;
-  padding:0.6rem 0.8rem; max-width:82%;
-  font-size:0.82rem; line-height:1.6; color:#0a0f1e; font-weight:600;
-}}
-.cs-lbl {{
-  font-size:0.6rem; font-weight:700; letter-spacing:0.07em;
-  text-transform:uppercase; margin-bottom:0.2rem; opacity:0.65;
-}}
-.cs-typing {{
-  align-self:flex-start;
-  background:#111c35; border:1px solid rgba(0,255,136,0.15);
-  border-radius:14px 14px 14px 4px;
-  padding:0.65rem 0.9rem; display:flex; gap:5px; align-items:center;
-}}
-.cs-dot {{
-  width:7px; height:7px; background:#00ff88; border-radius:50%;
-  animation:csDot 1.2s infinite;
-}}
-.cs-dot:nth-child(2) {{ animation-delay:.2s; }}
-.cs-dot:nth-child(3) {{ animation-delay:.4s; }}
-@keyframes csDot {{
-  0%,80%,100% {{ transform:scale(.6); opacity:.4; }}
-  40%          {{ transform:scale(1); opacity:1; }}
-}}
-#cs-sugg {{ padding:0 0.9rem 0.5rem; display:flex; flex-direction:column; gap:0.35rem; }}
-.cs-sugg-chip {{
-  background:#0a1220; border:1px solid rgba(0,255,136,0.1);
-  border-radius:8px; padding:0.4rem 0.7rem;
-  font-size:0.76rem; color:#c8cfe8; cursor:pointer;
-  transition:border-color .18s,background .18s;
-}}
-.cs-sugg-chip:hover {{ border-color:rgba(0,255,136,.35); background:rgba(0,255,136,.05); }}
-.cs-hindi-bar {{
-  padding:0.35rem 0.9rem; display:flex; align-items:center; gap:0.5rem;
-  background:#0a0f1e; border-top:1px solid rgba(255,255,255,.04); flex-shrink:0;
-}}
-.cs-hindi-lbl {{ font-size:0.7rem; color:#7888aa; }}
-.cs-toggle {{
-  width:32px; height:17px; background:#162040; border-radius:10px;
-  position:relative; cursor:pointer; border:none; transition:background .2s; flex-shrink:0;
-}}
-.cs-toggle.on {{ background:#00cc6a; }}
-.cs-toggle::after {{
-  content:''; position:absolute; top:2px; left:2px;
-  width:13px; height:13px; background:white; border-radius:50%; transition:left .2s;
-}}
-.cs-toggle.on::after {{ left:17px; }}
-.cs-input-row {{
-  padding:0.65rem; border-top:1px solid rgba(255,255,255,.06);
-  display:flex; gap:0.45rem; flex-shrink:0; background:#0a0f1e;
-}}
-#cs-input {{
-  flex:1; background:#111c35; border:1px solid rgba(0,255,136,.2);
-  border-radius:10px; color:#e8eaf6; font-family:'Inter',sans-serif;
-  font-size:0.83rem; padding:0.5rem 0.8rem; outline:none; transition:border-color .18s;
-}}
-#cs-input:focus {{ border-color:#00ff88; }}
-#cs-input::placeholder {{ color:#7888aa; }}
-#cs-send {{
-  background:linear-gradient(135deg,#00ff88,#00cc6a); border:none; border-radius:10px;
-  color:#0a0f1e; font-weight:700; font-size:1rem; width:38px; cursor:pointer;
-  transition:transform .18s,box-shadow .18s; flex-shrink:0;
-}}
-#cs-send:hover {{ transform:scale(1.08); box-shadow:0 4px 14px rgba(0,255,136,.4); }}
+  #cs-fab {{
+    position:fixed; bottom:2rem; right:2rem; width:62px; height:62px;
+    border-radius:50%; background:linear-gradient(135deg,#00ff88,#00cc6a);
+    box-shadow:0 6px 28px rgba(0,255,136,0.45);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; z-index:9999; border:none; font-size:1.6rem;
+    transition:transform .22s,box-shadow .22s;
+  }}
+  #cs-fab:hover {{ transform:scale(1.1) translateY(-3px); box-shadow:0 10px 36px rgba(0,255,136,0.6); }}
+  .cs-pulse {{
+    position:absolute; top:-3px; right:-3px; width:14px; height:14px;
+    border-radius:50%; background:#ff4444; border:2px solid #0a0f1e;
+    animation:csPulse 2s infinite;
+  }}
+  @keyframes csPulse {{ 0%,100%{{transform:scale(1);opacity:1;}} 50%{{transform:scale(1.4);opacity:0.6;}} }}
+
+  #cs-panel {{
+    position:fixed; bottom:6.5rem; right:1.5rem; width:370px; height:510px;
+    background:#0d1529; border:1px solid rgba(0,255,136,0.2); border-radius:20px;
+    box-shadow:0 24px 64px rgba(0,0,0,0.7); display:flex; flex-direction:column;
+    z-index:9998; transform:translateY(20px) scale(0.94); opacity:0;
+    pointer-events:none; transition:all .28s cubic-bezier(.34,1.56,.64,1);
+    overflow:hidden; font-family:'Inter',-apple-system,sans-serif;
+  }}
+  #cs-panel.cs-open {{ transform:translateY(0) scale(1); opacity:1; pointer-events:all; }}
+
+  .cs-ph {{
+    background:linear-gradient(135deg,#111c35,#0f1a30); padding:.9rem 1rem;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid rgba(0,255,136,0.1); flex-shrink:0;
+  }}
+  .cs-ph-info {{ display:flex; align-items:center; gap:.6rem; }}
+  .cs-ph-icon {{ font-size:1.4rem; filter:drop-shadow(0 0 8px rgba(0,255,136,0.5)); }}
+  .cs-ph-title {{ font-weight:800; font-size:.9rem; color:#e8eaf6; }}
+  .cs-ph-sub {{ font-size:.65rem; color:#7888aa; margin-top:1px; }}
+  .cs-close {{
+    background:rgba(255,255,255,0.06); border:none; color:#7888aa;
+    border-radius:8px; width:28px; height:28px; cursor:pointer;
+    font-size:.95rem; display:flex; align-items:center; justify-content:center;
+  }}
+  .cs-close:hover {{ background:rgba(255,68,68,0.15); color:#ff4444; }}
+
+  #cs-msgs {{
+    flex:1; overflow-y:auto; padding:.9rem;
+    display:flex; flex-direction:column; gap:.7rem; scroll-behavior:smooth;
+  }}
+  #cs-msgs::-webkit-scrollbar {{ width:4px; }}
+  #cs-msgs::-webkit-scrollbar-thumb {{ background:#162040; border-radius:10px; }}
+
+  .cs-bot {{
+    align-self:flex-start; background:#111c35; border:1px solid rgba(0,255,136,0.15);
+    border-radius:14px 14px 14px 4px; padding:.6rem .8rem; max-width:88%;
+    font-size:.82rem; line-height:1.6; color:#e8eaf6;
+  }}
+  .cs-usr {{
+    align-self:flex-end; background:linear-gradient(135deg,#00ff88,#00cc6a);
+    border-radius:14px 14px 4px 14px; padding:.6rem .8rem; max-width:82%;
+    font-size:.82rem; line-height:1.6; color:#0a0f1e; font-weight:600;
+  }}
+  .cs-lbl {{ font-size:.6rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; margin-bottom:.2rem; opacity:.65; }}
+
+  .cs-typing {{
+    align-self:flex-start; background:#111c35; border:1px solid rgba(0,255,136,0.15);
+    border-radius:14px 14px 14px 4px; padding:.65rem .9rem; display:flex; gap:5px; align-items:center;
+  }}
+  .cs-dot {{ width:7px; height:7px; background:#00ff88; border-radius:50%; animation:csDot 1.2s infinite; }}
+  .cs-dot:nth-child(2) {{ animation-delay:.2s; }}
+  .cs-dot:nth-child(3) {{ animation-delay:.4s; }}
+  @keyframes csDot {{ 0%,80%,100%{{transform:scale(.6);opacity:.4;}} 40%{{transform:scale(1);opacity:1;}} }}
+
+  #cs-sugg {{ padding:0 .9rem .5rem; display:flex; flex-direction:column; gap:.35rem; }}
+  .cs-sugg-chip {{
+    background:#0a1220; border:1px solid rgba(0,255,136,0.1); border-radius:8px;
+    padding:.4rem .7rem; font-size:.76rem; color:#c8cfe8; cursor:pointer;
+  }}
+  .cs-sugg-chip:hover {{ border-color:rgba(0,255,136,.35); background:rgba(0,255,136,.05); }}
+
+  .cs-hindi-bar {{
+    padding:.35rem .9rem; display:flex; align-items:center; gap:.5rem;
+    background:#0a0f1e; border-top:1px solid rgba(255,255,255,.04); flex-shrink:0;
+  }}
+  .cs-hindi-lbl {{ font-size:.7rem; color:#7888aa; }}
+  .cs-toggle {{
+    width:32px; height:17px; background:#162040; border-radius:10px;
+    position:relative; cursor:pointer; border:none;
+  }}
+  .cs-toggle.on {{ background:#00cc6a; }}
+  .cs-toggle::after {{
+    content:''; position:absolute; top:2px; left:2px;
+    width:13px; height:13px; background:white; border-radius:50%; transition:left .2s;
+  }}
+  .cs-toggle.on::after {{ left:17px; }}
+
+  .cs-input-row {{
+    padding:.65rem; border-top:1px solid rgba(255,255,255,.06);
+    display:flex; gap:.45rem; flex-shrink:0; background:#0a0f1e;
+  }}
+  #cs-input {{
+    flex:1; background:#111c35; border:1px solid rgba(0,255,136,.2);
+    border-radius:10px; color:#e8eaf6; font-family:'Inter',sans-serif;
+    font-size:.83rem; padding:.5rem .8rem; outline:none;
+  }}
+  #cs-input:focus {{ border-color:#00ff88; }}
+  #cs-input::placeholder {{ color:#7888aa; }}
+  #cs-send {{
+    background:linear-gradient(135deg,#00ff88,#00cc6a); border:none; border-radius:10px;
+    color:#0a0f1e; font-weight:700; font-size:1rem; width:38px; cursor:pointer;
+  }}
+  #cs-send:hover {{ transform:scale(1.08); box-shadow:0 4px 14px rgba(0,255,136,.4); }}
 </style>
 
-<!-- FAB -->
 <button id="cs-fab" onclick="csToggle()" title="Ask Contract Shield AI">
-  🤖
-  <div class="cs-pulse"></div>
+  🤖<div class="cs-pulse"></div>
 </button>
 
-<!-- Chat panel -->
 <div id="cs-panel">
   <div class="cs-ph">
     <div class="cs-ph-info">
       <div class="cs-ph-icon">🤖</div>
       <div>
         <div class="cs-ph-title">Contract Shield AI</div>
-        <div class="cs-ph-sub">Llama 3 · {"Contract analyzed ✅" if _widget_analyzed else "Analyze a contract first"}</div>
+        <div class="cs-ph-sub">Llama 3.3 · {_sub_status}</div>
       </div>
     </div>
     <button class="cs-close" onclick="csToggle()">✕</button>
   </div>
-
   <div id="cs-msgs">
     <div class="cs-bot">
       <div class="cs-lbl" style="color:#00ff88;">Contract Shield AI</div>
       {_greeting}
     </div>
   </div>
-
   <div id="cs-sugg">
-    <div class="cs-sugg-chip" onclick="csAsk(this)">💬 What's the most dangerous clause here?</div>
+    <div class="cs-sugg-chip" onclick="csAsk(this)">💬 What's the most dangerous clause?</div>
     <div class="cs-sugg-chip" onclick="csAsk(this)">💬 Can my employer deduct salary without consent?</div>
     <div class="cs-sugg-chip" onclick="csAsk(this)">💬 Is this penalty clause legal in India?</div>
   </div>
-
   <div class="cs-hindi-bar">
     <span class="cs-hindi-lbl">🇮🇳 Hindi mode</span>
     <button class="cs-toggle" id="cs-htoggle" onclick="csToggleHindi()"></button>
     <span class="cs-hindi-lbl" id="cs-hstatus">off</span>
   </div>
-
   <div class="cs-input-row">
     <input id="cs-input" type="text" placeholder="Ask about your contract…"
            onkeydown="if(event.key==='Enter')csSend()"/>
@@ -1230,97 +1176,131 @@ st.markdown(f"""
 
 <script>
 (function(){{
-  const API_KEY    = {repr(_widget_key)};
+  const API_KEY = {repr(_widget_key)};
   const SYS_PROMPT = {repr(_system_prompt)};
-  let panelOpen = false, hindiMode = false, history = [];
+  let panelOpen=false, hindiMode=false, history=[];
 
-  window.csToggle = function() {{
+  const fab = document.getElementById('cs-fab');
+  const panel = document.getElementById('cs-panel');
+  const parentDoc = window.parent.document;
+
+  const oldFab = parentDoc.getElementById('cs-fab');
+  const oldPanel = parentDoc.getElementById('cs-panel');
+  if(oldFab) oldFab.remove();
+  if(oldPanel) oldPanel.remove();
+
+  const style = document.querySelector('style');
+  const oldStyle = parentDoc.getElementById('cs-widget-style');
+  if(oldStyle) oldStyle.remove();
+  const newStyle = parentDoc.createElement('style');
+  newStyle.id = 'cs-widget-style';
+  newStyle.textContent = style.textContent;
+  parentDoc.head.appendChild(newStyle);
+
+  parentDoc.body.appendChild(fab);
+  parentDoc.body.appendChild(panel);
+
+  window.parent.csToggle = function() {{
     panelOpen = !panelOpen;
-    document.getElementById('cs-panel').classList.toggle('cs-open', panelOpen);
-    if (panelOpen) setTimeout(() => document.getElementById('cs-input').focus(), 300);
+    parentDoc.getElementById('cs-panel').classList.toggle('cs-open', panelOpen);
+    if(panelOpen) setTimeout(()=>parentDoc.getElementById('cs-input').focus(), 300);
   }};
+  fab.onclick = window.parent.csToggle;
+  parentDoc.querySelector('.cs-close').onclick = window.parent.csToggle;
 
-  window.csToggleHindi = function() {{
+  window.parent.csToggleHindi = function() {{
     hindiMode = !hindiMode;
-    document.getElementById('cs-htoggle').classList.toggle('on', hindiMode);
-    document.getElementById('cs-hstatus').textContent = hindiMode ? 'on' : 'off';
+    parentDoc.getElementById('cs-htoggle').classList.toggle('on', hindiMode);
+    parentDoc.getElementById('cs-hstatus').textContent = hindiMode ? 'on' : 'off';
   }};
-
-  window.csAsk = function(el) {{
-    const txt = el.textContent.replace(/^💬\s*/, '').trim();
-    document.getElementById('cs-input').value = txt;
-    document.getElementById('cs-sugg').style.display = 'none';
-    csSend();
-  }};
+  parentDoc.getElementById('cs-htoggle').onclick = window.parent.csToggleHindi;
 
   function addBubble(cls, html, labelColor) {{
-    const wrap = document.getElementById('cs-msgs');
-    const d = document.createElement('div');
+    const wrap = parentDoc.getElementById('cs-msgs');
+    const d = parentDoc.createElement('div');
     d.className = cls;
-    const lbl = document.createElement('div');
-    lbl.className = 'cs-lbl';
-    lbl.style.color = labelColor;
-    lbl.textContent = cls === 'cs-usr' ? 'You' : 'Contract Shield AI';
-    const body = document.createElement('div');
-    body.innerHTML = html.replace(/\n/g, '<br>');
+    const lbl = parentDoc.createElement('div');
+    lbl.className = 'cs-lbl'; lbl.style.color = labelColor;
+    lbl.textContent = cls==='cs-usr' ? 'You' : 'Contract Shield AI';
+    const body = parentDoc.createElement('div');
+    body.innerHTML = html.replace(/\\n/g, '<br>');
     d.appendChild(lbl); d.appendChild(body);
-    wrap.appendChild(d);
-    wrap.scrollTop = wrap.scrollHeight;
-    document.getElementById('cs-sugg').style.display = 'none';
+    wrap.appendChild(d); wrap.scrollTop = wrap.scrollHeight;
+    const sugg = parentDoc.getElementById('cs-sugg');
+    if(sugg) sugg.style.display='none';
     return d;
   }}
 
   function showTyping() {{
-    const wrap = document.getElementById('cs-msgs');
-    const d = document.createElement('div');
-    d.className = 'cs-typing'; d.id = 'cs-typing';
-    d.innerHTML = '<div class="cs-dot"></div><div class="cs-dot"></div><div class="cs-dot"></div>';
-    wrap.appendChild(d); wrap.scrollTop = wrap.scrollHeight;
+    const wrap = parentDoc.getElementById('cs-msgs');
+    const d = parentDoc.createElement('div');
+    d.className='cs-typing'; d.id='cs-typing';
+    d.innerHTML='<div class="cs-dot"></div><div class="cs-dot"></div><div class="cs-dot"></div>';
+    wrap.appendChild(d); wrap.scrollTop=wrap.scrollHeight;
   }}
-  function hideTyping() {{ const el = document.getElementById('cs-typing'); if(el) el.remove(); }}
+  function hideTyping() {{ const el=parentDoc.getElementById('cs-typing'); if(el) el.remove(); }}
 
   async function translate(text, target) {{
     try {{
-      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${{target}}&dt=t&q=${{encodeURIComponent(text)}}`;
-      const d = await (await fetch(url)).json();
+      const url=`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${{target}}&dt=t&q=${{encodeURIComponent(text)}}`;
+      const d=await(await fetch(url)).json();
       return d[0].map(x=>x[0]).join('');
     }} catch(e) {{ return text; }}
   }}
 
-  window.csSend = async function() {{
-    if (!API_KEY) {{
-      addBubble('cs-bot', '⚠️ No Groq API key found. Add it to your <code>.env</code> file and restart.', '#ff4444');
+  async function csSendFn() {{
+    if(!API_KEY) {{
+      addBubble('cs-bot','⚠️ No Groq API key. Add it to .env and restart.','#ff4444');
       return;
     }}
-    const inp = document.getElementById('cs-input');
-    let txt = inp.value.trim(); if (!txt) return; inp.value = '';
-    let displayTxt = txt, apiTxt = txt;
-    if (hindiMode) apiTxt = await translate(txt, 'en');
-    addBubble('cs-usr', displayTxt, 'rgba(10,15,30,0.55)');
-    history.push({{role:'user', content:apiTxt}});
+    const inp=parentDoc.getElementById('cs-input');
+    let txt=inp.value.trim(); if(!txt) return; inp.value='';
+    let displayTxt=txt, apiTxt=txt;
+    if(hindiMode) apiTxt=await translate(txt,'en');
+    addBubble('cs-usr',displayTxt,'rgba(10,15,30,0.55)');
+    history.push({{role:'user',content:apiTxt}});
     showTyping();
     try {{
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {{
+      const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{{
         method:'POST',
         headers:{{'Authorization':`Bearer ${{API_KEY}}`,'Content-Type':'application/json'}},
-        body: JSON.stringify({{model:'llama3-8b-8192', temperature:0.55, max_tokens:512,
+        body:JSON.stringify({{model:'llama-3.3-70b-versatile',temperature:0.55,max_tokens:512,
           messages:[{{role:'system',content:SYS_PROMPT}},...history.slice(-12)]}})
       }});
-      const data = await resp.json();
-      if (data.error) throw new Error(data.error.message);
-      let bot = data.choices[0].message.content.trim();
-      history.push({{role:'assistant', content:bot}});
-      if (hindiMode) bot = await translate(bot, 'hi');
+      const data=await resp.json();
+      if(data.error) throw new Error(data.error.message);
+      let bot=data.choices[0].message.content.trim();
+      history.push({{role:'assistant',content:bot}});
+      if(hindiMode) bot=await translate(bot,'hi');
       hideTyping();
-      addBubble('cs-bot', bot, '#00ff88');
+      addBubble('cs-bot',bot,'#00ff88');
     }} catch(e) {{
       hideTyping();
-      addBubble('cs-bot', `⚠️ Error: ${{e.message}}`, '#ff4444');
+      addBubble('cs-bot',`⚠️ Error: ${{e.message}}`,'#ff4444');
     }}
+  }}
+
+  window.parent.csSend = csSendFn;
+  parentDoc.getElementById('cs-send').onclick = csSendFn;
+  parentDoc.getElementById('cs-input').onkeydown = function(e) {{
+    if(e.key==='Enter') csSendFn();
   }};
+
+  window.parent.csAsk = function(el) {{
+    const txt=el.textContent.replace(/^💬\\s*/,'').trim();
+    parentDoc.getElementById('cs-input').value=txt;
+    const sugg=parentDoc.getElementById('cs-sugg');
+    if(sugg) sugg.style.display='none';
+    csSendFn();
+  }};
+  parentDoc.querySelectorAll('.cs-sugg-chip').forEach(chip => {{
+    chip.onclick = function() {{ window.parent.csAsk(this); }};
+  }});
 }})();
 </script>
-""", unsafe_allow_html=True)
+"""
+
+components.html(_widget_html, height=0, scrolling=False)
 
 # ── Footer ─────────────────────────────────────────────────────────────────────
 st.markdown("""
