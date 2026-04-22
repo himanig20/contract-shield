@@ -693,56 +693,116 @@ if analyze_btn and contract_text.strip():
                     </div>
                     """, unsafe_allow_html=True)
 
+                # ── Indian law reference badge ──
+                indian_law = f.get("indian_law", "")
+                if indian_law:
+                    st.markdown(f"""
+                    <div style="display:inline-flex; align-items:center; gap:0.4rem;
+                                background:rgba(100,149,237,0.08); border:1px solid rgba(100,149,237,0.25);
+                                border-radius:8px; padding:0.45rem 0.8rem; margin:0.5rem 0 0.2rem;">
+                      <span style="font-size:0.85rem;">⚖️</span>
+                      <span style="font-size:0.78rem; color:#8aadf4; font-weight:600;
+                                   letter-spacing:0.02em; line-height:1.5;">{indian_law}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
                 if language == "English":
                     if st.button(f"🌐 Translate explanation to Hindi", key=f"translate_{i}"):
                         hindi = translate_text(f["explanation"], target="hi")
                         st.success(f"🇮🇳 **Hindi:** {hindi}")
 
         # ── Next steps ────────────────────────────────────────────────────────
+        # ── Dynamic action checklist ──────────────────────────────────────────
         st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.8rem 0;'>", unsafe_allow_html=True)
+
+        high_findings  = [f for f in findings if f["risk"] == "HIGH"]
+        med_findings   = [f for f in findings if f["risk"] == "MEDIUM"]
+        high_cats      = list(dict.fromkeys(f["category"] for f in high_findings))
+        med_cats       = list(dict.fromkeys(f["category"] for f in med_findings))
+        unique_laws    = list(dict.fromkeys(f.get("indian_law", "") for f in findings if f.get("indian_law")))
+
+        actions = []
+        step = 1
+
+        if high_findings:
+            actions.append((f"{step}", "🛑 <b style='color:#ff4444;'>Do not sign this contract yet.</b> It contains high-risk clauses that could seriously harm your rights.", "#ff4444"))
+            step += 1
+            for cat in high_cats[:3]:
+                actions.append((f"{step}", f"Ask the employer to <b>remove or rewrite</b> the <i>{cat}</i> clause before signing.", "#ff9f43"))
+                step += 1
+
+        if med_findings:
+            actions.append((f"{step}", "Negotiate clearer language for the <b style='color:#ffd166;'>MEDIUM-risk</b> clauses ("
+                           + ", ".join(f"<i>{c}</i>" for c in med_cats[:3]) + ").", "#ffd166"))
+            step += 1
+
+        if unique_laws:
+            law_list = ", ".join(f"<i>{l.split(' — ')[0]}</i>" for l in unique_laws[:4])
+            actions.append((f"{step}", f"Learn about your rights under: {law_list}.", "#8aadf4"))
+            step += 1
+
+        if high_findings:
+            actions.append((f"{step}", "Contact a <b style='color:#00ff88;'>free legal aid NGO</b> or labour helpline (Shram Suvidha: <b>1800-11-4000</b>) before signing.", "#00ff88"))
+            step += 1
+
+        actions.append((f"{step}", "Keep a <b>written copy</b> of every negotiated change signed by both parties.", "#7888aa"))
+
         st.markdown("""
         <h2 style="font-family:'Inter',sans-serif; font-size:1.3rem; font-weight:800;
                    color:#e8eaf6; margin:0 0 1rem; letter-spacing:-0.02em;">
-          🧭 What to do next
+          🎯 What Should I Do?
         </h2>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
-          <div style="background:#0d1529; border:1px solid rgba(0,255,136,0.15); border-radius:10px; padding:1rem;">
-            <span style="color:#00ff88; font-size:1.3rem;">1️⃣</span>
-            <p style="color:#c8cfe8; font-size:0.88rem; margin:0.4rem 0 0; line-height:1.6;">
-              Ask for edits to every <b style='color:#ff4444;'>HIGH-risk</b> clause before signing.
-            </p>
-          </div>
-          <div style="background:#0d1529; border:1px solid rgba(0,255,136,0.15); border-radius:10px; padding:1rem;">
-            <span style="color:#00ff88; font-size:1.3rem;">2️⃣</span>
-            <p style="color:#c8cfe8; font-size:0.88rem; margin:0.4rem 0 0; line-height:1.6;">
-              Request objective language where terms say <i>sole discretion</i> or <i>deemed fit</i>.
-            </p>
-          </div>
-          <div style="background:#0d1529; border:1px solid rgba(0,255,136,0.15); border-radius:10px; padding:1rem;">
-            <span style="color:#00ff88; font-size:1.3rem;">3️⃣</span>
-            <p style="color:#c8cfe8; font-size:0.88rem; margin:0.4rem 0 0; line-height:1.6;">
-              Keep written proof of every negotiated change.
-            </p>
-          </div>
-          <div style="background:#0d1529; border:1px solid rgba(0,255,136,0.15); border-radius:10px; padding:1rem;">
-            <span style="color:#00ff88; font-size:1.3rem;">4️⃣</span>
-            <p style="color:#c8cfe8; font-size:0.88rem; margin:0.4rem 0 0; line-height:1.6;">
-              If HIGH-risk clauses remain, seek <b style='color:#00ff88;'>legal review</b> before signing.
-            </p>
-          </div>
-        </div>
         """, unsafe_allow_html=True)
 
-        # ── Download ──────────────────────────────────────────────────────────
+        for num, text, color in actions:
+            rgb = _hex_to_rgb(color)
+            st.markdown(f"""
+            <div style="display:flex; gap:0.8rem; align-items:flex-start; margin-bottom:0.7rem;">
+              <div style="flex-shrink:0; width:32px; height:32px; border-radius:50%;
+                          background:rgba({rgb},0.12); border:1px solid rgba({rgb},0.3);
+                          display:flex; align-items:center; justify-content:center;
+                          font-size:0.82rem; font-weight:800; color:{color};">{num}</div>
+              <p style="color:#c8cfe8; font-size:0.88rem; margin:0; line-height:1.6; padding-top:0.2rem;">{text}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ── Download + WhatsApp share ──────────────────────────────────────────
         st.markdown("<div style='margin-top:1.4rem;'>", unsafe_allow_html=True)
         report = generate_text_report(findings, score, doc_type)
-        st.download_button(
-            label="📥  Download Full Report (.txt)",
-            data=report,
-            file_name="contract_shield_report.txt",
-            mime="text/plain",
-            use_container_width=True,
-        )
+
+        dl_col, wa_col = st.columns([3, 2])
+        with dl_col:
+            st.download_button(
+                label="📥  Download Full Report (.txt)",
+                data=report,
+                file_name="contract_shield_report.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
+        with wa_col:
+            _n_high = len(high_findings)
+            _n_total = len(findings)
+            wa_msg = (
+                f"I analyzed my contract using *Contract Shield* 🛡\n"
+                f"\n"
+                f"📊 Fairness Score: *{score}/100*\n"
+                f"🚨 Found *{_n_high} HIGH-risk* and *{_n_total} total* flagged clauses.\n"
+                f"\n"
+                f"Get the free tool: https://github.com/himanig20/contract-shield"
+            )
+            import urllib.parse
+            wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_msg)}"
+            st.markdown(f"""
+            <a href="{wa_url}" target="_blank" style="text-decoration:none;">
+              <div style="background:linear-gradient(135deg,#25D366,#128C7E); border-radius:10px;
+                          padding:0.68rem 1rem; text-align:center; font-weight:700;
+                          color:white; font-size:0.92rem; letter-spacing:0.01em;
+                          transition:transform 0.18s, box-shadow 0.18s; cursor:pointer;
+                          box-shadow:0 4px 14px rgba(37,211,102,0.3);">
+                📱  Share on WhatsApp
+              </div>
+            </a>
+            """, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
         # Store analysis context for the floating widget

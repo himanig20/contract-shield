@@ -10,6 +10,7 @@ RISK_RULES = {
         'category': 'Unfair Termination',
         'explanation': 'This allows the employer to fire you at any time without warning and possibly without paying your dues. This likely violates the Industrial Disputes Act, 1947.',
         'suggestion': 'Ask for a clear notice period and guaranteed settlement of all pending dues.',
+        'indian_law': 'Industrial Disputes Act, 1947 — Section 25F requires 30 days notice and compensation before retrenchment',
     },
     'predatory_interest': {
         'keywords': ['compounded daily', 'penal interest', 'per day interest',
@@ -19,6 +20,7 @@ RISK_RULES = {
         'category': 'Predatory Interest Rate',
         'explanation': 'This interest rate compounds daily or weekly, meaning your debt can multiply extremely fast. 3% per day = over 1000% annual interest. This may be illegal under Indian usury laws.',
         'suggestion': 'Negotiate a monthly interest cap and request a clear upper limit on total payable amount.',
+        'indian_law': 'Usurious Loans Act, 1918 — Courts can reopen transactions with excessive interest rates',
     },
     'wage_deduction': {
         'keywords': ['deduct from wages', 'withhold salary', 'offset dues',
@@ -28,6 +30,7 @@ RISK_RULES = {
         'category': 'Illegal Wage Deduction',
         'explanation': 'The employer is claiming the right to deduct money from your wages. Deductions without your written consent may be illegal under the Payment of Wages Act, 1936.',
         'suggestion': 'Request that deductions require your written consent and be limited to lawful categories.',
+        'indian_law': 'Payment of Wages Act, 1936 — Section 7 restricts unauthorized deductions from wages',
     },
     'liability_waiver': {
         'keywords': ['waive all rights', 'not liable', 'no compensation',
@@ -38,6 +41,7 @@ RISK_RULES = {
         'category': 'Liability Waiver',
         'explanation': 'You are being asked to give up your right to claim compensation if something goes wrong including workplace injury. Such waivers are often unenforceable under Indian law.',
         'suggestion': 'Do not waive injury or compensation rights. Ask for lawful employer liability language.',
+        'indian_law': "Workmen's Compensation Act, 1923 — Waivers of compensation for workplace injury are void",
     },
     'eviction_no_notice': {
         'keywords': ['vacate immediately', 'eviction without notice',
@@ -48,6 +52,7 @@ RISK_RULES = {
         'category': 'Unlawful Eviction',
         'explanation': 'This clause allows the landlord to evict you without proper notice. Most Indian states require 30 days written notice before eviction.',
         'suggestion': 'Ask for written notice periods and due process terms before eviction action.',
+        'indian_law': 'Transfer of Property Act, 1882 — Section 106 requires 15 days notice for monthly tenancies',
     },
     'forced_overtime': {
         'keywords': ['mandatory overtime', 'required to work extra',
@@ -58,6 +63,7 @@ RISK_RULES = {
         'category': 'Forced Overtime',
         'explanation': 'This clause requires you to work extra hours without extra pay. Under the Factories Act, overtime must be paid at double the regular rate.',
         'suggestion': 'Request overtime payment terms with clear hourly rate and legal compliance.',
+        'indian_law': 'Factories Act, 1948 — Section 59 mandates overtime pay at double the ordinary rate',
     },
     'ambiguous_discretion': {
         'keywords': ['sole discretion', 'as deemed fit', 'reasonable time',
@@ -68,6 +74,7 @@ RISK_RULES = {
         'category': 'Ambiguous Term',
         'explanation': 'This phrase gives the other party unlimited power to decide without any accountability. There is no limit on what reasonable or fit means only they decide.',
         'suggestion': 'Replace vague discretion phrases with objective criteria, timelines, and review rights.',
+        'indian_law': 'Indian Contract Act, 1872 — Section 29 renders vague agreements void',
     },
     'non_compete': {
         'keywords': ['not engage in', 'refrain from working', 'compete with',
@@ -77,6 +84,7 @@ RISK_RULES = {
         'category': 'Non-Compete Clause',
         'explanation': 'This restricts where you can work after leaving this job. Overly broad non-compete clauses are often unenforceable in India especially for low-wage workers.',
         'suggestion': 'Narrow any non-compete by time, geography, and role, or remove it entirely.',
+        'indian_law': 'Indian Contract Act, 1872 — Section 27 declares agreements in restraint of trade void',
     },
     'penalty_clause': {
         'keywords': ['penalty of rs', 'late fee', 'surcharge',
@@ -86,6 +94,7 @@ RISK_RULES = {
         'category': 'Excessive Penalty',
         'explanation': 'This document charges a penalty for breach. Ask: How much exactly? Under what conditions? Is there a maximum cap? Uncapped penalties can trap you in debt.',
         'suggestion': 'Ask for a fixed and reasonable cap on penalties and transparent trigger conditions.',
+        'indian_law': 'Indian Contract Act, 1872 — Section 74 limits penalty to reasonable compensation for actual loss',
     },
     'privacy_abuse': {
         'keywords': ['share personal information', 'disclose to third parties',
@@ -95,8 +104,10 @@ RISK_RULES = {
         'category': 'Privacy Concern',
         'explanation': 'Your personal information may be shared with or sold to third parties. Ask exactly who will receive your data and for what purpose.',
         'suggestion': 'Limit data sharing to specific purposes and require prior written consent.',
+        'indian_law': 'Digital Personal Data Protection Act, 2023 — Requires informed consent before processing personal data',
     },
 }
+
 
 
 def split_clauses(text):
@@ -149,6 +160,7 @@ def analyze_contract(text):
                     'category': rule['category'],
                     'explanation': rule['explanation'],
                     'suggestion': rule['suggestion'],
+                    'indian_law': rule.get('indian_law', ''),
                     'matched_text': matched_text,
                     'clause_id': clause_id,
                     'clause_text': clause_text,
