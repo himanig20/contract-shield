@@ -2,6 +2,8 @@ import os
 import streamlit as st
 from dotenv import load_dotenv
 import pdfplumber
+import plotly.graph_objects as go
+from datetime import datetime
 
 # Load .env so GROQ_API_KEY is available in os.environ
 load_dotenv()
@@ -11,7 +13,7 @@ try:
     GROQ_AVAILABLE = True
 except ImportError:
     GROQ_AVAILABLE = False
-from rules import analyze_contract
+from rules import analyze_contract, split_clauses
 from utils import (
     calculate_score,
     get_score_label,
@@ -321,6 +323,94 @@ with st.sidebar:
             key="groq_api_key_input",
         )
 
+    # ── Sample contracts ──
+    st.markdown("""
+    <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
+    <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
+              text-transform:uppercase; margin-bottom:0.4rem;">📄 Load Sample Contract</p>
+    """, unsafe_allow_html=True)
+
+    if st.button("🏭  Labor Contract", use_container_width=True, key="sample_labor"):
+        st.session_state["contract_input"] = (
+            "EMPLOYMENT CONTRACT\n\n"
+            "1. The employee agrees to work a minimum of 10 hours per day, 6 days a week, "
+            "with no additional compensation for overtime as deemed fit by management.\n\n"
+            "2. The company reserves the right to terminate the employee immediately without "
+            "prior notice and without payment of pending dues.\n\n"
+            "3. In case of any breach, a penalty of Rs. 5000 per day shall be charged, "
+            "compounded daily until the amount is recovered in full.\n\n"
+            "4. The employee waives all rights to legal action against the company for any "
+            "workplace injury or illness sustained during employment.\n\n"
+            "5. The employer may deduct from wages any amount as determined by management "
+            "at sole discretion for damages, losses, or misconduct.\n\n"
+            "6. The employee shall not engage in or work for any competing business for a "
+            "period of 3 years after leaving the company, across all of India."
+        )
+        st.rerun()
+
+    if st.button("🏠  Rental Agreement", use_container_width=True, key="sample_rental"):
+        st.session_state["contract_input"] = (
+            "RENTAL AGREEMENT\n\n"
+            "1. The tenant shall pay rent of Rs. 8,000 per month, due on the 1st. A late fee "
+            "of Rs. 500 per day shall apply for any delay.\n\n"
+            "2. The landlord reserves the right to enter the premises at any time without "
+            "prior notice for inspection purposes.\n\n"
+            "3. The tenant must vacate the premises immediately upon landlord's request, "
+            "with no notice period required.\n\n"
+            "4. The security deposit of Rs. 50,000 shall be forfeited entirely if the tenant "
+            "vacates before 11 months, regardless of reason.\n\n"
+            "5. The landlord is not liable for any injury, damage, or loss to the tenant's "
+            "property within the premises. The tenant holds harmless the landlord.\n\n"
+            "6. The landlord may share personal information of the tenant with third parties "
+            "including collection agencies and future landlords."
+        )
+        st.rerun()
+
+    if st.button("💰  Loan Document", use_container_width=True, key="sample_loan"):
+        st.session_state["contract_input"] = (
+            "LOAN AGREEMENT\n\n"
+            "1. The borrower agrees to repay the principal amount of Rs. 50,000 with "
+            "interest at 5% per day, compounded daily.\n\n"
+            "2. In case of default, the lender may deduct from wages or any bank account "
+            "held by the borrower the outstanding amount plus penalty.\n\n"
+            "3. The borrower waives all rights to legal action against the lender in case "
+            "of disputes arising from this agreement.\n\n"
+            "4. The lender reserves absolute discretion to modify interest rates, repayment "
+            "schedule, and penalty terms at any time without notice.\n\n"
+            "5. A penalty of Rs. 1000 per day of delay in repayment shall be levied, in "
+            "addition to the compounding interest.\n\n"
+            "6. The borrower's personal information including Aadhaar, PAN, and contact "
+            "details may be disclosed to third parties for recovery purposes."
+        )
+        st.rerun()
+
+    # ── Session history ──
+    if "analysis_history" not in st.session_state:
+        st.session_state["analysis_history"] = []
+
+    history = st.session_state["analysis_history"]
+    if history:
+        st.markdown("""
+        <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
+        <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
+                  text-transform:uppercase; margin-bottom:0.4rem;">🕒 Recent Analyses</p>
+        """, unsafe_allow_html=True)
+        for h in reversed(history[-3:]):
+            _h_color = "#ff4444" if h["score"] < 40 else "#ffd166" if h["score"] < 70 else "#00ff88"
+            st.markdown(f"""
+            <div style="background:#111c35; border:1px solid rgba(255,255,255,0.07);
+                        border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.78rem; color:#c8cfe8; font-weight:600;">{h['doc_type']}</span>
+                <span style="font-size:0.78rem; color:{_h_color}; font-weight:800;">{h['score']}/100</span>
+              </div>
+              <div style="font-size:0.68rem; color:#7888aa; margin-top:0.2rem;">
+                {h['timestamp']} · {h['n_findings']} issues · {h['n_high']} HIGH
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # ── How to use + footer ──
     st.markdown("""
     <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
     <div style="background:#111c35; border-radius:10px; padding:1rem; border:1px solid rgba(255,255,255,0.07);">
@@ -335,7 +425,7 @@ with st.sidebar:
     <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
     <div style="text-align:center; font-size:0.75rem; color:#7888aa;">
         🇮🇳 &nbsp;Built for social impact<br>
-        <span style="color:rgba(255,255,255,0.2);">v2.1 · Contract Shield</span>
+        <span style="color:rgba(255,255,255,0.2);">v3.0 · Contract Shield</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -577,6 +667,19 @@ if analyze_btn and contract_text.strip():
     findings     = analyze_contract(cleaned_text)
     score        = calculate_score(findings)
     label, emoji = get_score_label(score)
+    total_clauses = len(split_clauses(cleaned_text))
+
+    # Save to session history (keep last 3)
+    if "analysis_history" not in st.session_state:
+        st.session_state["analysis_history"] = []
+    st.session_state["analysis_history"].append({
+        "doc_type": doc_type,
+        "score": score,
+        "n_findings": len(findings),
+        "n_high": sum(1 for f in findings if f["risk"] == "HIGH"),
+        "timestamp": datetime.now().strftime("%I:%M %p"),
+    })
+    st.session_state["analysis_history"] = st.session_state["analysis_history"][-3:]
 
     st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.8rem 0;'>", unsafe_allow_html=True)
 
@@ -588,17 +691,70 @@ if analyze_btn and contract_text.strip():
     </h2>
     """, unsafe_allow_html=True)
 
-    score_col, counts_col = st.columns([1, 2])
+    high   = sum(1 for f in findings if f["risk"] == "HIGH")
+    medium = sum(1 for f in findings if f["risk"] == "MEDIUM")
+    low    = sum(1 for f in findings if f["risk"] == "LOW")
+
+    # ── Statistics dashboard ──
+    stat_cols = st.columns(4)
+    def _stat_card(col, value, label, icon, color):
+        rgb = _hex_to_rgb(color)
+        col.markdown(f"""
+        <div style="background:rgba({rgb},0.06); border:1px solid rgba({rgb},0.2);
+                    border-radius:12px; padding:0.9rem 0.8rem; text-align:center;">
+          <div style="font-size:1.2rem; margin-bottom:0.2rem;">{icon}</div>
+          <div style="font-size:1.8rem; font-weight:900; color:{color}; line-height:1;">{value}</div>
+          <div style="font-size:0.68rem; color:rgba({rgb},0.8); letter-spacing:0.05em;
+                      text-transform:uppercase; margin-top:0.3rem;">{label}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    _stat_card(stat_cols[0], total_clauses, "Clauses Scanned", "📝", "#8aadf4")
+    _stat_card(stat_cols[1], high, "High Risk", "🔴", "#ff4444")
+    _stat_card(stat_cols[2], medium, "Medium Risk", "🟠", "#ff9f43")
+    _stat_card(stat_cols[3], low, "Low Risk", "🟡", "#ffd166")
+
+    # ── Score gauge + donut + verdict ──
+    score_col, chart_col, verdict_col = st.columns([1, 1, 1])
 
     with score_col:
         st.markdown(render_gauge(score), unsafe_allow_html=True)
 
-    with counts_col:
-        high   = sum(1 for f in findings if f["risk"] == "HIGH")
-        medium = sum(1 for f in findings if f["risk"] == "MEDIUM")
-        low    = sum(1 for f in findings if f["risk"] == "LOW")
+    with chart_col:
+        # Risk breakdown donut
+        if findings:
+            fig = go.Figure(data=[go.Pie(
+                labels=["HIGH", "MEDIUM", "LOW"],
+                values=[high, medium, low],
+                hole=0.6,
+                marker=dict(
+                    colors=["#ff4444", "#ff9f43", "#ffd166"],
+                    line=dict(color="#0a0f1e", width=2),
+                ),
+                textinfo="label+value",
+                textfont=dict(size=12, color="#e8eaf6"),
+                hovertemplate="%{label}: %{value} clause(s)<extra></extra>",
+            )])
+            fig.update_layout(
+                showlegend=False,
+                margin=dict(l=10, r=10, t=10, b=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                height=200,
+                annotations=[dict(
+                    text=f"<b>{len(findings)}</b><br><span style='font-size:10px;color:#7888aa'>Issues</span>",
+                    x=0.5, y=0.5, font=dict(size=22, color="#e8eaf6"),
+                    showarrow=False,
+                )],
+            )
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        else:
+            st.markdown("""
+            <div style="display:flex; align-items:center; justify-content:center;
+                        height:200px; color:#7888aa; font-size:0.9rem;">✅ Clean!</div>
+            """, unsafe_allow_html=True)
 
-        # Summary label
+    with verdict_col:
         full_label, _ = get_score_label(score)
         st.markdown(f"""
         <div style="background:var(--navy-3); border:1px solid rgba(255,255,255,0.07);
@@ -609,20 +765,21 @@ if analyze_btn and contract_text.strip():
         </div>
         """, unsafe_allow_html=True)
 
-        c1, c2, c3 = st.columns(3)
-        def stat_box(col, count, label, color, glow_rgb):
-            col.markdown(f"""
-            <div style="background:rgba({glow_rgb},0.07); border:1px solid rgba({glow_rgb},0.25);
-                        border-radius:10px; padding:0.9rem 0.7rem; text-align:center;">
-              <div style="font-size:2rem; font-weight:900; color:rgb({glow_rgb}); line-height:1;">{count}</div>
-              <div style="font-size:0.7rem; color:rgba({glow_rgb},0.8); letter-spacing:0.06em;
-                          text-transform:uppercase; margin-top:0.2rem;">{label}</div>
+        # Most common risk category
+        if findings:
+            from collections import Counter
+            cat_counts = Counter(f["category"] for f in findings)
+            top_cat, top_count = cat_counts.most_common(1)[0]
+            st.markdown(f"""
+            <div style="background:rgba(138,173,244,0.06); border:1px solid rgba(138,173,244,0.2);
+                        border-radius:12px; padding:1rem 1.2rem;">
+              <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
+                        text-transform:uppercase; margin:0 0 0.3rem;">Most Common Issue</p>
+              <p style="font-size:0.95rem; font-weight:700; color:#8aadf4; margin:0;">
+                {top_cat} <span style="font-weight:400; color:#7888aa;">({top_count}×)</span>
+              </p>
             </div>
             """, unsafe_allow_html=True)
-
-        stat_box(c1, high,   "HIGH risk",   "#ff4444", "255,68,68")
-        stat_box(c2, medium, "MEDIUM risk", "#ff9f43", "255,159,67")
-        stat_box(c3, low,    "LOW risk",    "#ffd166", "255,209,102")
 
         if not findings:
             st.success("✅ No exploitative clauses detected!")
