@@ -1,4 +1,15 @@
+import os
 import streamlit as st
+from dotenv import load_dotenv
+
+# Load .env so GROQ_API_KEY is available in os.environ
+load_dotenv()
+
+try:
+    from groq import Groq as GroqClient
+    GROQ_AVAILABLE = True
+except ImportError:
+    GROQ_AVAILABLE = False
 from rules import analyze_contract
 from utils import (
     calculate_score,
@@ -189,6 +200,60 @@ hr { border-color: var(--border) !important; }
 ::-webkit-scrollbar-track { background: var(--navy-2); }
 ::-webkit-scrollbar-thumb { background: var(--navy-4); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
+
+/* ── Chat bubbles ── */
+.chat-wrap { display:flex; flex-direction:column; gap:0.9rem; margin:1rem 0; }
+.bubble-user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+    color: #0a0f1e;
+    border-radius: 18px 18px 4px 18px;
+    padding: 0.75rem 1.1rem;
+    max-width: 72%;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0,255,136,0.2);
+    position: relative;
+}
+.bubble-bot {
+    align-self: flex-start;
+    background: #111c35;
+    color: #e8eaf6;
+    border: 1px solid rgba(0,255,136,0.18);
+    border-radius: 18px 18px 18px 4px;
+    padding: 0.75rem 1.1rem;
+    max-width: 78%;
+    font-size: 0.9rem;
+    line-height: 1.65;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.bubble-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    opacity: 0.7;
+    text-transform: uppercase;
+}
+.chat-input-area {
+    background: #111c35;
+    border: 1px solid rgba(0,255,136,0.22);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    margin-top: 0.8rem;
+}
+.hindi-badge {
+    display:inline-block;
+    background: rgba(255,165,0,0.15);
+    border: 1px solid rgba(255,165,0,0.4);
+    color: #ffb347;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 0.15rem 0.6rem;
+    border-radius: 20px;
+    margin-left: 0.5rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -227,6 +292,36 @@ with st.sidebar:
 
     st.markdown("""
     <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
+    <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
+              text-transform:uppercase; margin-bottom:0.4rem;">🤖 AI Assistant</p>
+    """, unsafe_allow_html=True)
+
+    # Key loaded from .env  — show status; offer override only if not set
+    _env_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if _env_key and not _env_key.startswith("your_"):
+        st.markdown("""
+        <div style="background:rgba(0,255,136,0.07); border:1px solid rgba(0,255,136,0.2);
+                    border-radius:8px; padding:0.5rem 0.8rem; font-size:0.78rem; color:#00ff88;">
+          ✅ API key loaded from <code style="color:#00ff88;">.env</code> — chatbot ready
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="background:rgba(255,159,67,0.07); border:1px solid rgba(255,159,67,0.2);
+                    border-radius:8px; padding:0.5rem 0.8rem; font-size:0.78rem; color:#ff9f43;">
+          No key in <code style="color:#ff9f43;">.env</code> — paste one below (not saved).
+        </div>
+        """, unsafe_allow_html=True)
+        st.text_input(
+            "Groq API Key override",
+            type="password",
+            placeholder="gsk_…",
+            label_visibility="collapsed",
+            key="groq_api_key_input",
+        )
+
+    st.markdown("""
+    <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
     <div style="background:#111c35; border-radius:10px; padding:1rem; border:1px solid rgba(255,255,255,0.07);">
         <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 0.7rem;">📖 How to use</p>
         <p style="font-size:0.82rem; color:#c8cfe8; margin:0; line-height:1.7;">
@@ -239,7 +334,7 @@ with st.sidebar:
     <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
     <div style="text-align:center; font-size:0.75rem; color:#7888aa;">
         🇮🇳 &nbsp;Built for social impact<br>
-        <span style="color:rgba(255,255,255,0.2);">v2.0 · Contract Shield</span>
+        <span style="color:rgba(255,255,255,0.2);">v2.1 · Contract Shield</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -580,6 +675,185 @@ if analyze_btn and contract_text.strip():
             use_container_width=True,
         )
         st.markdown("</div>", unsafe_allow_html=True)
+
+        # ── AI Chatbot ────────────────────────────────────────────────────────
+        st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:2rem 0;'>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.5rem;">
+          <div style="font-size:1.6rem; filter:drop-shadow(0 0 10px rgba(0,255,136,0.4));">🤖</div>
+          <div>
+            <h2 style="font-family:'Inter',sans-serif; font-size:1.4rem; font-weight:800;
+                       color:#e8eaf6; margin:0; letter-spacing:-0.02em;">Contract Shield AI</h2>
+            <p style="color:#7888aa; font-size:0.78rem; margin:0;">Ask anything about your contract · Powered by Llama 3</p>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Session state for chat history, keyed to the current analysis run
+        if "chat_history" not in st.session_state:
+            st.session_state.chat_history = []
+        if "chat_contract_snapshot" not in st.session_state:
+            st.session_state.chat_contract_snapshot = ""
+
+        # Reset chat if a new contract was analyzed
+        contract_snapshot = contract_text[:120]
+        if st.session_state.chat_contract_snapshot != contract_snapshot:
+            st.session_state.chat_history = []
+            st.session_state.chat_contract_snapshot = contract_snapshot
+
+        # Prefer .env key; fall back to the sidebar override field
+        _env_key = os.environ.get("GROQ_API_KEY", "").strip()
+        groq_api_key = (
+            _env_key
+            if _env_key and not _env_key.startswith("your_")
+            else st.session_state.get("groq_api_key_input", "")
+        )
+
+        if not groq_api_key:
+            st.markdown("""
+            <div style="background:rgba(255,159,67,0.07); border:1px solid rgba(255,159,67,0.25);
+                        border-radius:12px; padding:1.2rem 1.4rem; text-align:center;">
+              <div style="font-size:1.8rem;">🔑</div>
+              <p style="color:#ff9f43; font-size:0.88rem; margin:0.4rem 0 0; font-weight:600;">
+                Enter your Groq API key in the sidebar to unlock the AI assistant.
+              </p>
+              <p style="color:#7888aa; font-size:0.78rem; margin:0.3rem 0 0;">
+                Get a free key at <a href="https://console.groq.com/keys" target="_blank"
+                style="color:#ff9f43;">console.groq.com</a>
+              </p>
+            </div>
+            """, unsafe_allow_html=True)
+        elif not GROQ_AVAILABLE:
+            st.error("The `groq` Python package is not installed. Run: `pip install groq`")
+        else:
+            # ── Build system prompt ──
+            findings_summary = "\n".join(
+                f"- [{f['risk']}] {f['category']}: {f['explanation'][:120]}"
+                for f in findings
+            ) or "No risky clauses were flagged."
+
+            system_prompt = (
+                "You are Contract Shield AI, a legal assistant helping informal workers in India "
+                "understand their contracts. You have analyzed this contract and found these issues:\n"
+                f"{findings_summary}\n"
+                f"The fairness score is {score}/100. "
+                "Answer questions simply and clearly. Always mention relevant Indian labor laws. "
+                "Never give formal legal advice but explain rights in plain language."
+            )
+
+            # ── Hindi toggle ──
+            hindi_mode = st.checkbox(
+                "🇮🇳 Ask in Hindi (auto-translate question & answer)",
+                key="chat_hindi_toggle",
+            )
+
+            # ── Render existing chat history ──
+            if st.session_state.chat_history:
+                st.markdown('<div class="chat-wrap">', unsafe_allow_html=True)
+                for turn in st.session_state.chat_history:
+                    role  = turn["role"]
+                    text  = turn["content"]
+                    if role == "user":
+                        st.markdown(f"""
+                        <div style="display:flex; justify-content:flex-end;">
+                          <div class="bubble-user">
+                            <div class="bubble-label" style="text-align:right;">You</div>
+                            {text}
+                          </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                        <div style="display:flex; justify-content:flex-start;">
+                          <div class="bubble-bot">
+                            <div class="bubble-label" style="color:#00ff88;">🤖 Contract Shield AI</div>
+                            {text}
+                          </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+            # ── Chat input row ──
+            chat_col1, chat_col2 = st.columns([5, 1])
+            with chat_col1:
+                user_question = st.text_input(
+                    "Ask a question",
+                    placeholder="e.g. Can they deduct my salary without my consent?",
+                    key="chat_input_box",
+                    label_visibility="collapsed",
+                )
+            with chat_col2:
+                send_btn = st.button("Send ✈️", type="primary", use_container_width=True, key="chat_send")
+
+            clear_chat_btn = st.button("🗑 Clear chat history", key="clear_chat", use_container_width=False)
+            if clear_chat_btn:
+                st.session_state.chat_history = []
+                st.rerun()
+
+            if send_btn and user_question.strip():
+                display_question = user_question.strip()
+                api_question     = user_question.strip()
+
+                # Optionally translate question to English for the API
+                if hindi_mode:
+                    with st.spinner("Translating your question…"):
+                        api_question = translate_text(display_question, target="en") or api_question
+
+                # Append user message to history (display version)
+                st.session_state.chat_history.append({"role": "user", "content": display_question})
+
+                # Build API messages from history (use English for API)
+                api_messages = [{"role": "system", "content": system_prompt}]
+                for turn in st.session_state.chat_history[:-1]:  # exclude the just-added user msg
+                    api_messages.append({"role": turn["role"], "content": turn["content"]})
+                api_messages.append({"role": "user", "content": api_question})
+
+                # ── Call Groq API ──
+                with st.spinner("Contract Shield AI is thinking…"):
+                    try:
+                        client   = GroqClient(api_key=groq_api_key)
+                        response = client.chat.completions.create(
+                            model="llama3-8b-8192",
+                            messages=api_messages,
+                            max_tokens=512,
+                            temperature=0.55,
+                        )
+                        bot_answer = response.choices[0].message.content.strip()
+
+                        # Translate answer to Hindi if toggle is on
+                        if hindi_mode:
+                            with st.spinner("Translating answer to Hindi…"):
+                                bot_answer = translate_text(bot_answer, target="hi") or bot_answer
+
+                    except Exception as exc:
+                        bot_answer = f"⚠️ Error contacting Groq API: {exc}"
+
+                st.session_state.chat_history.append({"role": "assistant", "content": bot_answer})
+                st.rerun()
+
+            # ── Suggested quick questions ──
+            if not st.session_state.chat_history:
+                st.markdown("""
+                <p style="color:#7888aa; font-size:0.75rem; letter-spacing:0.06em;
+                           text-transform:uppercase; margin:1rem 0 0.5rem;">💡 Try asking</p>
+                """, unsafe_allow_html=True)
+                suggestions = [
+                    "What's the most dangerous clause in this contract?",
+                    "Can my employer deduct my salary without consent?",
+                    "What does the Industrial Disputes Act say about notice periods?",
+                    "Is this penalty clause legal in India?",
+                ]
+                scols = st.columns(2)
+                for idx, suggestion in enumerate(suggestions):
+                    with scols[idx % 2]:
+                        st.markdown(f"""
+                        <div style="background:#0d1529; border:1px solid rgba(0,255,136,0.12);
+                                    border-radius:8px; padding:0.65rem 0.9rem; margin-bottom:0.5rem;
+                                    font-size:0.82rem; color:#c8cfe8; cursor:pointer;
+                                    transition:border-color 0.2s;">
+                          💬 {suggestion}
+                        </div>
+                        """, unsafe_allow_html=True)
 
     else:
         st.markdown("""
