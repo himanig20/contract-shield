@@ -15,27 +15,33 @@ def inject_floating_chat():
     api_key = api_key_session if api_key_session else GROQ_API_KEY
     
     # Prepare system prompt for the JS bot
-    # Base: friendly general assistant with legal expertise
-    system_prompt = (
-        "You are Contract Shield AI — a helpful, friendly, and knowledgeable assistant. "
-        "You specialize in Indian labor law, tenant rights, and loan agreements — but you can discuss ANY topic the user brings up. "
-        "You are warm, conversational, and use simple language. You never refuse general questions like greetings, general advice, or random topics. "
-        "When asked about contracts, legal terms, or rights, give clear and practical answers. "
-        "Keep responses concise (2-4 sentences) unless the user asks for detail. "
-        "Always be encouraging and supportive.\n\n"
-    )
+    has_contract = bool(contract and findings)
     
-    # If a contract has been analyzed, add it as optional context
-    # Keep it short to avoid API payload issues
-    if contract and score:
-        # Abbreviate findings (first 600 chars) and contract snippet (first 800 chars)
-        short_findings = findings[:600].replace('\n', ' ') if findings else "None"
-        short_contract = contract[:800].replace('\n', ' ') if contract else "None"
-        system_prompt += (
-            f"CONTRACT CONTEXT (use when user asks about their contract): "
-            f"Fairness Score: {score}/100. "
-            f"Findings summary: {short_findings}. "
-            f"Contract excerpt: {short_contract}"
+    if has_contract:
+        short_findings = findings[:800].replace('\n', ' ') if findings else "None"
+        short_contract = contract[:1000].replace('\n', ' ') if contract else "None"
+        system_prompt = (
+            f"You are Contract Shield AI — a friendly legal assistant embedded in a contract analysis tool.\n\n"
+            f"IMPORTANT: The user has ALREADY uploaded and analyzed a real contract through this tool. "
+            f"You have the full analysis results. Always reference these specific results when the user asks about their contract, analysis, or risks — do NOT say you need more details.\n\n"
+            f"=== CONTRACT ANALYSIS RESULTS ===\n"
+            f"Fairness Score: {score}/100\n"
+            f"Flagged Issues: {short_findings}\n"
+            f"Contract Text Excerpt: {short_contract}\n"
+            f"=================================\n\n"
+            f"Instructions:\n"
+            f"- When asked about the contract, analysis, risks, clauses etc. — use the SPECIFIC data above.\n"
+            f"- For general chat, be friendly and helpful.\n"
+            f"- Keep responses concise (2-4 sentences) unless asked for detail.\n"
+            f"- Use simple, non-legal language."
+        )
+    else:
+        system_prompt = (
+            "You are Contract Shield AI — a helpful, friendly legal assistant. "
+            "You specialize in Indian labor law, tenant rights, and loan agreements — but you can discuss ANY topic. "
+            "Be warm, conversational, and use simple language. "
+            "Keep responses concise (2-4 sentences) unless asked for detail. "
+            "No contract has been analyzed yet — if the user wants contract analysis, ask them to paste or upload one using the tool above."
         )
     
     # Escape strings safely for JS insertion
