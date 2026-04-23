@@ -24,7 +24,8 @@ from ui.components import (
     hex_to_rgb,
 )
 from ui.charts import render_risk_donut, render_radar_chart
-from ui.chatbot import render_chatbot, clear_chat
+from ui.floating_chat import inject_floating_chat
+from ui.chatbot import clear_chat
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -469,10 +470,6 @@ if analyze_btn and contract_text.strip():
         </div>
         """, unsafe_allow_html=True)
 
-    # ── Chatbot Section ──
-    st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:2rem 0;'>", unsafe_allow_html=True)
-    render_chatbot(language=language)
-
 elif analyze_btn and not contract_text.strip():
     st.markdown("""
     <div style="background:rgba(255,159,67,0.08); border:1px solid rgba(255,159,67,0.3);
@@ -481,10 +478,8 @@ elif analyze_btn and not contract_text.strip():
     </div>
     """, unsafe_allow_html=True)
 
-# ── Show chatbot if already analyzed (on page reruns) ──
-elif st.session_state.get("cs_analyzed", False):
-    st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:2rem 0;'>", unsafe_allow_html=True)
-    render_chatbot(language=language)
+# ── FLOATING CHATBOT INJECTION ──
+inject_floating_chat()
 
 # ── Footer ──
 render_footer()
