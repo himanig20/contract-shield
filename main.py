@@ -1,336 +1,105 @@
+"""
+Contract Shield v4.0 — AI-Powered Contract Risk Analyzer
+Main application entry point.
+"""
 import os
 import streamlit as st
 from dotenv import load_dotenv
-import pdfplumber
-import plotly.graph_objects as go
 from datetime import datetime
+import urllib.parse
 
-# Load .env so GROQ_API_KEY is available in os.environ
 load_dotenv()
 
-try:
-    from groq import Groq as GroqClient
-    GROQ_AVAILABLE = True
-except ImportError:
-    GROQ_AVAILABLE = False
+# ── Core imports ──────────────────────────────────────────────────────────────
 from rules import analyze_contract, split_clauses
-from utils import (
-    calculate_score,
-    get_score_label,
-    translate_text,
-    preprocess,
-    generate_text_report,
+from utils import calculate_score, get_score_label, preprocess, generate_text_report
+from config import LANGUAGES, CONTRACT_TYPES, FAIRNESS_CATEGORIES, GROQ_API_KEY
+from services.groq_client import explain_clause, is_available as groq_available
+from services.translator import translate_text
+from ui.css import GLOBAL_CSS
+from ui.components import (
+    render_hero, render_urgency_banner, render_stat_card,
+    render_gauge, render_category_scores, render_clause_card,
+    render_action_checklist, render_tts_button, render_footer,
+    hex_to_rgb,
 )
+from ui.charts import render_risk_donut, render_radar_chart
+from ui.chatbot import render_chatbot, clear_chat
 
-# ── Page config ────────────────────────────────────────────────────────────────
+# ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Contract Shield · Protect Your Rights",
+    page_title="Contract Shield · AI Legal Analyzer",
     page_icon="🛡",
     layout="wide",
 )
 
-# ── Global CSS ─────────────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-/* ── Google Font ── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+# ── Inject CSS ───────────────────────────────────────────────────────────────
+st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
-/* ── Root variables ── */
-:root {
-    --navy:      #0a0f1e;
-    --navy-2:    #0d1529;
-    --navy-3:    #111c35;
-    --navy-4:    #162040;
-    --green:     #00ff88;
-    --green-dim: #00cc6a;
-    --red:       #ff4444;
-    --red-dim:   #cc2222;
-    --yellow:    #ffd166;
-    --orange:    #ff9f43;
-    --text:      #e8eaf6;
-    --muted:     #7888aa;
-    --border:    rgba(255,255,255,0.07);
-    --glow-g:    0 0 24px rgba(0,255,136,0.25);
-    --glow-r:    0 0 24px rgba(255,68,68,0.25);
-    --radius:    14px;
-}
-
-/* ── Base reset ── */
-html, body, [data-testid="stAppViewContainer"],
-[data-testid="stApp"] {
-    background-color: var(--navy) !important;
-    color: var(--text) !important;
-    font-family: 'Inter', sans-serif !important;
-}
-
-[data-testid="stHeader"] { background: transparent !important; }
-
-/* ── Sticky top bar ── */
-[data-testid="stHeader"]::after {
-    content: '';
-    display: block;
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: 60px;
-    background: rgba(10,15,30,0.85);
-    backdrop-filter: blur(14px);
-    border-bottom: 1px solid var(--border);
-    z-index: 999;
-}
-
-/* ── Sidebar ── */
-[data-testid="stSidebar"] {
-    background: var(--navy-2) !important;
-    border-right: 1px solid var(--border) !important;
-}
-[data-testid="stSidebar"] * { color: var(--text) !important; }
-[data-testid="stSidebar"] .stSelectbox label,
-[data-testid="stSidebar"] .stRadio label { color: var(--muted) !important; font-size: 0.78rem !important; letter-spacing: 0.06em !important; text-transform: uppercase !important; }
-[data-testid="stSidebar"] .stSelectbox > div > div,
-[data-testid="stSidebar"] .stRadio > div { background: var(--navy-4) !important; border-radius: 8px !important; border: 1px solid var(--border) !important; }
-
-/* ── Text area ── */
-textarea {
-    background: var(--navy-3) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    color: var(--text) !important;
-    font-family: 'Inter', monospace !important;
-    font-size: 0.92rem !important;
-    transition: border-color 0.2s;
-}
-textarea:focus { border-color: var(--green) !important; box-shadow: var(--glow-g) !important; outline: none !important; }
-
-/* ── Primary button ── */
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, var(--green), #00cc6a) !important;
-    color: #0a0f1e !important;
-    font-weight: 700 !important;
-    font-size: 0.95rem !important;
-    border: none !important;
-    border-radius: 10px !important;
-    padding: 0.65rem 1.5rem !important;
-    transition: all 0.22s ease !important;
-    box-shadow: 0 4px 20px rgba(0,255,136,0.3) !important;
-}
-.stButton > button[kind="primary"]:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 32px rgba(0,255,136,0.45) !important;
-}
-
-/* ── Secondary button ── */
-.stButton > button:not([kind="primary"]) {
-    background: var(--navy-4) !important;
-    color: var(--text) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 10px !important;
-    font-weight: 500 !important;
-    transition: all 0.2s ease !important;
-}
-.stButton > button:not([kind="primary"]):hover {
-    border-color: var(--green) !important;
-    color: var(--green) !important;
-}
-
-/* ── Download button ── */
-.stDownloadButton > button {
-    background: var(--navy-4) !important;
-    color: var(--green) !important;
-    border: 1px solid var(--green) !important;
-    border-radius: 10px !important;
-    font-weight: 600 !important;
-    transition: all 0.22s !important;
-}
-.stDownloadButton > button:hover {
-    background: var(--green) !important;
-    color: var(--navy) !important;
-    box-shadow: var(--glow-g) !important;
-}
-
-/* ── Expander ── */
-.streamlit-expanderHeader {
-    background: var(--navy-3) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 10px !important;
-    font-weight: 600 !important;
-    font-size: 0.93rem !important;
-    color: var(--text) !important;
-    transition: background 0.2s !important;
-}
-.streamlit-expanderHeader:hover { background: var(--navy-4) !important; }
-.streamlit-expanderContent {
-    background: var(--navy-3) !important;
-    border: 1px solid var(--border) !important;
-    border-top: none !important;
-    border-radius: 0 0 10px 10px !important;
-}
-
-/* ── Info / success / warning boxes ── */
-.stAlert { border-radius: 10px !important; border: 1px solid var(--border) !important; }
-
-/* ── Divider ── */
-hr { border-color: var(--border) !important; }
-
-/* ── Code blocks ── */
-.stCodeBlock, code {
-    background: #060b18 !important;
-    border-radius: 8px !important;
-    border: 1px solid var(--border) !important;
-    color: #a8d8a8 !important;
-}
-
-/* ── Metric ── */
-[data-testid="stMetric"] {
-    background: var(--navy-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1rem 1.2rem;
-}
-[data-testid="stMetricLabel"] { color: var(--muted) !important; font-size: 0.78rem !important; letter-spacing: 0.08em; text-transform: uppercase; }
-[data-testid="stMetricValue"] { font-size: 2.4rem !important; font-weight: 800 !important; color: var(--green) !important; }
-
-/* ── Caption ── */
-.stCaption { color: var(--muted) !important; font-size: 0.78rem !important; }
-
-/* ── Checkbox ── */
-.stCheckbox label { color: var(--text) !important; }
-
-/* ── Spinner ── */
-.stSpinner > div { border-top-color: var(--green) !important; }
-
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--navy-2); }
-::-webkit-scrollbar-thumb { background: var(--navy-4); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
-
-/* ── Chat bubbles ── */
-.chat-wrap { display:flex; flex-direction:column; gap:0.9rem; margin:1rem 0; }
-.bubble-user {
-    align-self: flex-end;
-    background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-    color: #0a0f1e;
-    border-radius: 18px 18px 4px 18px;
-    padding: 0.75rem 1.1rem;
-    max-width: 72%;
-    font-size: 0.9rem;
-    font-weight: 600;
-    box-shadow: 0 4px 16px rgba(0,255,136,0.2);
-    position: relative;
-}
-.bubble-bot {
-    align-self: flex-start;
-    background: #111c35;
-    color: #e8eaf6;
-    border: 1px solid rgba(0,255,136,0.18);
-    border-radius: 18px 18px 18px 4px;
-    padding: 0.75rem 1.1rem;
-    max-width: 78%;
-    font-size: 0.9rem;
-    line-height: 1.65;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-}
-.bubble-label {
-    font-size: 0.68rem;
-    letter-spacing: 0.06em;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-    opacity: 0.7;
-    text-transform: uppercase;
-}
-.chat-input-area {
-    background: #111c35;
-    border: 1px solid rgba(0,255,136,0.22);
-    border-radius: 12px;
-    padding: 1rem 1.2rem;
-    margin-top: 0.8rem;
-}
-.hindi-badge {
-    display:inline-block;
-    background: rgba(255,165,0,0.15);
-    border: 1px solid rgba(255,165,0,0.4);
-    color: #ffb347;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    padding: 0.15rem 0.6rem;
-    border-radius: 20px;
-    margin-left: 0.5rem;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ── Language map (must be defined before sidebar) ──────────────────────────────
-LANG_MAP = {
-    "English": None,
-    "Hindi": "hi",
-    "Marathi": "mr",
-    "Bengali": "bn",
-}
-
-# ── Sidebar ────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# SIDEBAR
+# ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
+    # Logo
     st.markdown("""
-    <div style="text-align:center; padding: 1.2rem 0 0.8rem;">
-        <div style="font-size:2.6rem; line-height:1;">🛡</div>
+    <div style="text-align:center; padding:1.2rem 0 0.8rem;">
+        <div style="font-size:2.6rem; line-height:1; filter:drop-shadow(0 0 16px rgba(0,255,136,0.4));">🛡</div>
         <div style="font-size:1.1rem; font-weight:800; color:#e8eaf6; letter-spacing:-0.02em; margin-top:0.3rem;">Contract Shield</div>
-        <div style="font-size:0.7rem; color:#7888aa; margin-top:0.2rem; letter-spacing:0.04em;">RIGHTS PROTECTION TOOL</div>
+        <div style="font-size:0.65rem; color:#7888aa; margin-top:0.15rem; letter-spacing:0.06em;">AI LEGAL ANALYZER · v4.0</div>
     </div>
-    <hr style="border-color:rgba(255,255,255,0.07); margin: 0.5rem 0 1.2rem;">
+    <hr style="border-color:rgba(255,255,255,0.07); margin:0.5rem 0 1.2rem;">
     """, unsafe_allow_html=True)
 
+    # Document Type
     st.markdown("<p style='color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.3rem;'>⚙️ Document Type</p>", unsafe_allow_html=True)
     doc_type = st.selectbox(
         "Document Type",
-        ["Labor Contract", "Rental Agreement", "Loan Document", "Other"],
+        list(CONTRACT_TYPES.keys()),
         label_visibility="collapsed",
     )
 
-    st.markdown("<p style='color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin: 1rem 0 0.3rem;'>🌐 Output Language</p>", unsafe_allow_html=True)
-    language = st.radio(
-        "Output Language",
-        ["English", "Hindi", "Marathi", "Bengali"],
-        label_visibility="collapsed",
-    )
+    # Language
+    st.markdown("<p style='color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin:1rem 0 0.3rem;'>🌐 Output Language</p>", unsafe_allow_html=True)
+    lang_options = [f"{v['flag']} {k}" for k, v in LANGUAGES.items()]
+    selected_lang_display = st.radio("Language", lang_options, label_visibility="collapsed")
+    language = selected_lang_display.split(" ", 1)[1]
+    lang_code = LANGUAGES[language]["code"]
 
+    # AI Status
     st.markdown("""
-    <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
-    <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
-              text-transform:uppercase; margin-bottom:0.4rem;">🤖 AI Assistant</p>
+    <hr style="border-color:rgba(255,255,255,0.07); margin:1.4rem 0 1rem;">
+    <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.4rem;">🤖 AI Assistant</p>
     """, unsafe_allow_html=True)
 
-    # Key loaded from .env  — show status; offer override only if not set
-    _env_key = os.environ.get("GROQ_API_KEY", "").strip()
+    _env_key = GROQ_API_KEY
     if _env_key and not _env_key.startswith("your_"):
         st.markdown("""
         <div style="background:rgba(0,255,136,0.07); border:1px solid rgba(0,255,136,0.2);
                     border-radius:8px; padding:0.5rem 0.8rem; font-size:0.78rem; color:#00ff88;">
-          ✅ API key loaded from <code style="color:#00ff88;">.env</code> — chatbot ready
+          ✅ API key loaded — AI features active
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown("""
         <div style="background:rgba(255,159,67,0.07); border:1px solid rgba(255,159,67,0.2);
                     border-radius:8px; padding:0.5rem 0.8rem; font-size:0.78rem; color:#ff9f43;">
-          No key in <code style="color:#ff9f43;">.env</code> — paste one below (not saved).
+          ⚠️ No API key — enter one below
         </div>
         """, unsafe_allow_html=True)
-        st.text_input(
-            "Groq API Key override",
-            type="password",
-            placeholder="gsk_…",
-            label_visibility="collapsed",
-            key="groq_api_key_input",
-        )
+        st.text_input("Groq API Key", type="password", placeholder="gsk_…",
+                      label_visibility="collapsed", key="groq_api_key_input")
 
-    # ── Sample contracts ──
+    # AI Toggle
+    use_ai = st.checkbox("🧠 Use AI explanations", value=True, key="use_ai_toggle",
+                         help="Enable LLM-powered explanations and safer rewrites")
+
+    # Sample Contracts
     st.markdown("""
-    <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
-    <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
-              text-transform:uppercase; margin-bottom:0.4rem;">📄 Load Sample Contract</p>
+    <hr style="border-color:rgba(255,255,255,0.07); margin:1.4rem 0 1rem;">
+    <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.4rem;">📄 Load Sample Contract</p>
     """, unsafe_allow_html=True)
 
-    if st.button("🏭  Labor Contract", use_container_width=True, key="sample_labor"):
+    if st.button("🏭  Labor Contract", use_container_width=True, key="s_labor"):
         st.session_state["contract_input"] = (
             "EMPLOYMENT CONTRACT\n\n"
             "1. The employee agrees to work a minimum of 10 hours per day, 6 days a week, "
@@ -346,9 +115,10 @@ with st.sidebar:
             "6. The employee shall not engage in or work for any competing business for a "
             "period of 3 years after leaving the company, across all of India."
         )
+        clear_chat()
         st.rerun()
 
-    if st.button("🏠  Rental Agreement", use_container_width=True, key="sample_rental"):
+    if st.button("🏠  Rental Agreement", use_container_width=True, key="s_rental"):
         st.session_state["contract_input"] = (
             "RENTAL AGREEMENT\n\n"
             "1. The tenant shall pay rent of Rs. 8,000 per month, due on the 1st. A late fee "
@@ -364,9 +134,10 @@ with st.sidebar:
             "6. The landlord may share personal information of the tenant with third parties "
             "including collection agencies and future landlords."
         )
+        clear_chat()
         st.rerun()
 
-    if st.button("💰  Loan Document", use_container_width=True, key="sample_loan"):
+    if st.button("💰  Loan Document", use_container_width=True, key="s_loan"):
         st.session_state["contract_input"] = (
             "LOAN AGREEMENT\n\n"
             "1. The borrower agrees to repay the principal amount of Rs. 50,000 with "
@@ -382,138 +153,88 @@ with st.sidebar:
             "6. The borrower's personal information including Aadhaar, PAN, and contact "
             "details may be disclosed to third parties for recovery purposes."
         )
+        clear_chat()
         st.rerun()
 
-    # ── Session history ──
+    # Session History
     if "analysis_history" not in st.session_state:
         st.session_state["analysis_history"] = []
 
     history = st.session_state["analysis_history"]
     if history:
         st.markdown("""
-        <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
-        <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
-                  text-transform:uppercase; margin-bottom:0.4rem;">🕒 Recent Analyses</p>
+        <hr style="border-color:rgba(255,255,255,0.07); margin:1.4rem 0 1rem;">
+        <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.4rem;">🕒 Recent Analyses</p>
         """, unsafe_allow_html=True)
         for h in reversed(history[-3:]):
-            _h_color = "#ff4444" if h["score"] < 40 else "#ffd166" if h["score"] < 70 else "#00ff88"
+            _hc = "#ff4444" if h["score"] < 40 else "#ffd166" if h["score"] < 70 else "#00ff88"
             st.markdown(f"""
             <div style="background:#111c35; border:1px solid rgba(255,255,255,0.07);
-                        border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem;">
+                        border-radius:8px; padding:0.55rem 0.8rem; margin-bottom:0.4rem;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-size:0.78rem; color:#c8cfe8; font-weight:600;">{h['doc_type']}</span>
-                <span style="font-size:0.78rem; color:{_h_color}; font-weight:800;">{h['score']}/100</span>
+                <span style="font-size:0.78rem; color:{_hc}; font-weight:800;">{h['score']}/100</span>
               </div>
-              <div style="font-size:0.68rem; color:#7888aa; margin-top:0.2rem;">
+              <div style="font-size:0.66rem; color:#7888aa; margin-top:0.15rem;">
                 {h['timestamp']} · {h['n_findings']} issues · {h['n_high']} HIGH
               </div>
             </div>
             """, unsafe_allow_html=True)
 
-    # ── How to use + footer ──
+    # How to use
     st.markdown("""
-    <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
-    <div style="background:#111c35; border-radius:10px; padding:1rem; border:1px solid rgba(255,255,255,0.07);">
-        <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 0.7rem;">📖 How to use</p>
-        <p style="font-size:0.82rem; color:#c8cfe8; margin:0; line-height:1.7;">
-          1️⃣ &nbsp;Paste your contract text<br>
-          2️⃣ &nbsp;Click <b style="color:#00ff88;">Analyze Contract</b><br>
-          3️⃣ &nbsp;Review flagged clauses<br>
-          4️⃣ &nbsp;Download your report
+    <hr style="border-color:rgba(255,255,255,0.07); margin:1.4rem 0 1rem;">
+    <div style="background:#111c35; border-radius:10px; padding:0.9rem; border:1px solid rgba(255,255,255,0.07);">
+        <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 0.6rem;">📖 How to use</p>
+        <p style="font-size:0.8rem; color:#c8cfe8; margin:0; line-height:1.7;">
+          1️⃣ Paste text or upload PDF<br>
+          2️⃣ Click <b style="color:#00ff88;">Analyze</b><br>
+          3️⃣ Review flagged clauses<br>
+          4️⃣ Chat with AI for advice<br>
+          5️⃣ Download report
         </p>
-    </div>
-    <hr style="border-color:rgba(255,255,255,0.07); margin: 1.4rem 0 1rem;">
-    <div style="text-align:center; font-size:0.75rem; color:#7888aa;">
-        🇮🇳 &nbsp;Built for social impact<br>
-        <span style="color:rgba(255,255,255,0.2);">v3.0 · Contract Shield</span>
     </div>
     """, unsafe_allow_html=True)
 
-# ── Hero banner ────────────────────────────────────────────────────────────────
-st.markdown("""
-<div style="
-    background: linear-gradient(135deg, #0d1529 0%, #0f1e3a 50%, #0a1628 100%);
-    border: 1px solid rgba(0,255,136,0.12);
-    border-radius: 20px;
-    padding: 3rem 2.5rem 2.8rem;
-    text-align: center;
-    margin-bottom: 2rem;
-    position: relative;
-    overflow: hidden;
-">
-  <!-- glow orbs -->
-  <div style="position:absolute;top:-60px;left:-60px;width:220px;height:220px;
-              background:radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%);
-              pointer-events:none;"></div>
-  <div style="position:absolute;bottom:-60px;right:-60px;width:220px;height:220px;
-              background:radial-gradient(circle, rgba(0,100,255,0.07) 0%, transparent 70%);
-              pointer-events:none;"></div>
 
-  <div style="font-size:4.5rem; line-height:1; margin-bottom:0.7rem; filter:drop-shadow(0 0 20px rgba(0,255,136,0.4));">🛡</div>
-  <h1 style="font-family:'Inter',sans-serif; font-size:3rem; font-weight:900;
-             background: linear-gradient(135deg, #ffffff 0%, #00ff88 60%, #00cc6a 100%);
-             -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-             margin:0 0 0.5rem; letter-spacing:-0.04em; line-height:1.1;">
-    Contract Shield
-  </h1>
-  <p style="font-size:1.1rem; color:#7888aa; margin:0 0 0.4rem; font-weight:400; letter-spacing:0.01em;">
-    Protecting <span style="color:#00ff88; font-weight:700;">450 million</span> informal workers in India
-  </p>
-  <p style="font-size:0.82rem; color:rgba(255,255,255,0.3); margin:0; letter-spacing:0.04em;">
-    AI-powered contract analysis · Free · Multilingual · Not legal advice
-  </p>
+# ══════════════════════════════════════════════════════════════════════════════
+# MAIN CONTENT
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Hero ──
+render_hero()
+
+# ── Contract type info ──
+ct = CONTRACT_TYPES[doc_type]
+st.markdown(f"""
+<div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1.2rem;
+            background:rgba({hex_to_rgb(ct['color'])},0.06);
+            border:1px solid rgba({hex_to_rgb(ct['color'])},0.15);
+            border-radius:10px; padding:0.6rem 1rem;">
+  <span style="font-size:1.4rem;">{ct['icon']}</span>
+  <div>
+    <span style="font-size:0.88rem; font-weight:700; color:{ct['color']};">{doc_type}</span>
+    <span style="font-size:0.78rem; color:#7888aa; margin-left:0.5rem;">{ct['desc']}</span>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
-# ── Input section (tabbed) ─────────────────────────────────────────────────────
+# ── Input section (tabbed) ────────────────────────────────────────────────────
+import pdfplumber
+
 tab_paste, tab_pdf = st.tabs(["📋  Paste Text", "📄  Upload PDF"])
 
 with tab_paste:
-    st.markdown("""
-    <p style="font-size:0.78rem; color:#7888aa; letter-spacing:0.07em;
-              text-transform:uppercase; margin-bottom:0.4rem;">
-      📋 &nbsp;Paste your contract text
-    </p>
-    """, unsafe_allow_html=True)
-
+    st.markdown("<p style='font-size:0.75rem; color:#7888aa; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.3rem;'>📋 Paste your contract text</p>", unsafe_allow_html=True)
     contract_text = st.text_area(
-        "Contract text",
-        height=240,
-        placeholder="Paste any labor contract, rental agreement, or loan document here…",
-        key="contract_input",
-        label_visibility="collapsed",
+        "Contract text", height=220,
+        placeholder="Paste any labor contract, rental agreement, or loan document…",
+        key="contract_input", label_visibility="collapsed",
     )
-
-    with st.expander("📄 Load a sample exploitative contract for testing"):
-        sample_text = """EMPLOYMENT CONTRACT
-
-1. The employee agrees to work a minimum of 10 hours per day, 6 days a week, with no additional compensation for overtime as deemed fit by management.
-
-2. The company reserves the right to terminate the employee immediately without prior notice and without payment of pending dues.
-
-3. In case of any breach, a penalty of Rs. 5000 per day shall be charged, compounded daily until the amount is recovered in full.
-
-4. The employee waives all rights to legal action against the company for any workplace injury or illness.
-
-5. The employer may deduct from wages any amount as determined by management at sole discretion."""
-
-        st.code(sample_text)
-        st.info("👆 Copy the text above and paste it into the main text area to test!")
 
 with tab_pdf:
-    st.markdown("""
-    <p style="font-size:0.78rem; color:#7888aa; letter-spacing:0.07em;
-              text-transform:uppercase; margin-bottom:0.4rem;">
-      📄 &nbsp;Upload a contract PDF
-    </p>
-    """, unsafe_allow_html=True)
-
-    uploaded_file = st.file_uploader(
-        "Upload PDF",
-        type=["pdf"],
-        label_visibility="collapsed",
-        key="pdf_upload",
-    )
+    st.markdown("<p style='font-size:0.75rem; color:#7888aa; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.3rem;'>📄 Upload a contract PDF</p>", unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Upload PDF", type=["pdf"], label_visibility="collapsed", key="pdf_upload")
 
     if uploaded_file is not None:
         try:
@@ -528,41 +249,21 @@ with tab_pdf:
                 contract_text = "\n\n".join(pdf_pages)
                 st.markdown(f"""
                 <div style="background:rgba(0,255,136,0.06); border:1px solid rgba(0,255,136,0.2);
-                            border-radius:10px; padding:0.8rem 1rem; margin-bottom:0.8rem;
-                            font-size:0.85rem; color:#00ff88;">
+                            border-radius:10px; padding:0.7rem 1rem; font-size:0.83rem; color:#00ff88;">
                   ✅ Extracted <b>{len(pdf_pages)} page{'s' if len(pdf_pages) != 1 else ''}</b>
                   · {len(contract_text):,} characters
                 </div>
                 """, unsafe_allow_html=True)
-
-                with st.expander("👁 Preview extracted text", expanded=False):
+                with st.expander("👁 Preview extracted text"):
                     st.text(contract_text[:3000] + ("\n\n… [truncated]" if len(contract_text) > 3000 else ""))
             else:
                 contract_text = ""
-                st.markdown("""
-                <div style="background:rgba(255,68,68,0.08); border:1px solid rgba(255,68,68,0.25);
-                            border-radius:10px; padding:1rem 1.2rem; text-align:center;">
-                  <div style="font-size:1.5rem;">📛</div>
-                  <p style="color:#ff4444; font-weight:600; font-size:0.9rem; margin:0.4rem 0 0.2rem;">
-                    No readable text found in this PDF
-                  </p>
-                  <p style="color:#7888aa; font-size:0.8rem; margin:0;">
-                    This may be a scanned document. Try pasting the text manually in the Paste Text tab,
-                    or use an OCR tool first.
-                  </p>
-                </div>
-                """, unsafe_allow_html=True)
+                st.error("📛 No readable text found. This may be a scanned PDF — try the Upload Image tab or paste text manually.")
         except Exception as e:
             contract_text = ""
-            st.markdown(f"""
-            <div style="background:rgba(255,68,68,0.08); border:1px solid rgba(255,68,68,0.25);
-                        border-radius:10px; padding:1rem 1.2rem;">
-              ⚠️ <span style="color:#ff4444; font-weight:600;">Error reading PDF:</span>
-              <span style="color:#c8cfe8;">{e}</span>
-            </div>
-            """, unsafe_allow_html=True)
+            st.error(f"⚠️ Error reading PDF: {e}")
 
-# ── Action buttons ─────────────────────────────────────────────────────────────
+# ── Action buttons ────────────────────────────────────────────────────────────
 col1, col2 = st.columns([3, 1])
 with col1:
     analyze_btn = st.button("🔍  Analyze Contract", type="primary", use_container_width=True)
@@ -572,107 +273,32 @@ with col2:
 if clear_btn:
     st.session_state["contract_input"] = ""
     st.session_state["pdf_upload"] = None
+    st.session_state["cs_analyzed"] = False
+    clear_chat()
     st.rerun()
 
-# ── Helper: circular gauge HTML ────────────────────────────────────────────────
-def render_gauge(score):
-    if score >= 80:
-        color = "#00ff88"
-        glow  = "rgba(0,255,136,0.35)"
-        label, emoji = "FAIR", "✅"
-    elif score >= 60:
-        color = "#ffd166"
-        glow  = "rgba(255,209,102,0.35)"
-        label, emoji = "CAUTION", "⚠️"
-    elif score >= 40:
-        color = "#ff9f43"
-        glow  = "rgba(255,159,67,0.35)"
-        label, emoji = "RISKY", "🟠"
-    else:
-        color = "#ff4444"
-        glow  = "rgba(255,68,68,0.35)"
-        label, emoji = "DANGER", "🔴"
-
-    # SVG circle math
-    radius          = 54
-    circumference   = 2 * 3.14159 * radius
-    filled          = circumference * score / 100
-    gap             = circumference - filled
-
-    return f"""
-<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1rem;">
-  <svg width="160" height="160" viewBox="0 0 160 160" style="filter:drop-shadow(0 0 16px {glow});">
-    <!-- Track -->
-    <circle cx="80" cy="80" r="{radius}" fill="none"
-            stroke="rgba(255,255,255,0.06)" stroke-width="12"/>
-    <!-- Arc -->
-    <circle cx="80" cy="80" r="{radius}" fill="none"
-            stroke="{color}" stroke-width="12"
-            stroke-linecap="round"
-            stroke-dasharray="{filled:.1f} {gap:.1f}"
-            transform="rotate(-90 80 80)"
-            style="transition: stroke-dasharray 0.8s ease;"/>
-    <!-- Score text -->
-    <text x="80" y="75" text-anchor="middle"
-          font-family="Inter,sans-serif" font-size="28" font-weight="900"
-          fill="{color}">{score}</text>
-    <text x="80" y="96" text-anchor="middle"
-          font-family="Inter,sans-serif" font-size="11" font-weight="500"
-          fill="rgba(255,255,255,0.45)" letter-spacing="2">OUT OF 100</text>
-  </svg>
-  <div style="margin-top:0.6rem; font-size:1rem; font-weight:700; color:{color};
-              letter-spacing:0.06em;">
-    {emoji} &nbsp;{label}
-  </div>
-</div>
-"""
-
-# ── Helper: risk card HTML ─────────────────────────────────────────────────────
-RISK_COLORS = {
-    "HIGH":   {"border": "#ff4444", "badge_bg": "rgba(255,68,68,0.15)",   "badge_text": "#ff4444"},
-    "MEDIUM": {"border": "#ff9f43", "badge_bg": "rgba(255,159,67,0.15)",  "badge_text": "#ff9f43"},
-    "LOW":    {"border": "#ffd166", "badge_bg": "rgba(255,209,102,0.15)", "badge_text": "#ffd166"},
-}
-
-def risk_card_header(i, risk, category, confidence, clause_id, match_source):
-    c = RISK_COLORS.get(risk, {"border": "#888", "badge_bg": "rgba(136,136,136,0.1)", "badge_text": "#888"})
-    return f"""
-<div style="
-    border-left: 4px solid {c['border']};
-    background: linear-gradient(90deg, rgba({_hex_to_rgb(c['border'])},0.06) 0%, transparent 60%);
-    border-radius: 0 8px 8px 0;
-    padding: 0.55rem 0.9rem;
-    margin-bottom: 0.3rem;
-    display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;
-">
-  <span style="background:{c['badge_bg']}; color:{c['badge_text']};
-               font-size:0.7rem; font-weight:700; letter-spacing:0.08em;
-               padding:0.15rem 0.55rem; border-radius:20px; border:1px solid {c['border']};">
-    {risk}
-  </span>
-  <span style="font-weight:600; font-size:0.9rem; color:#e8eaf6;">{category}</span>
-  <span style="margin-left:auto; font-size:0.72rem; color:#7888aa;">
-    Clause #{clause_id} &nbsp;·&nbsp; {match_source} &nbsp;·&nbsp; {confidence}% confidence
-  </span>
-</div>
-"""
-
-def _hex_to_rgb(h):
-    h = h.lstrip("#")
-    return ",".join(str(int(h[i:i+2], 16)) for i in (0, 2, 4))
-
-# ── Analysis ───────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# ANALYSIS RESULTS
+# ══════════════════════════════════════════════════════════════════════════════
 if analyze_btn and contract_text.strip():
     cleaned_text = preprocess(contract_text)
-    findings     = analyze_contract(cleaned_text)
-    score        = calculate_score(findings)
+    findings = analyze_contract(cleaned_text)
+    score = calculate_score(findings)
     label, emoji = get_score_label(score)
     total_clauses = len(split_clauses(cleaned_text))
 
-    # Save to session history (keep last 3)
-    if "analysis_history" not in st.session_state:
-        st.session_state["analysis_history"] = []
-    st.session_state["analysis_history"].append({
+    # Save to session state for chatbot
+    _findings_summary = "\n".join(
+        f"- [{f['risk']}] {f['category']}: {f['explanation'][:120]}"
+        for f in findings
+    ) or "No risky clauses were flagged."
+    st.session_state["cs_contract_text"] = cleaned_text[:4000]
+    st.session_state["cs_findings"] = _findings_summary
+    st.session_state["cs_score"] = score
+    st.session_state["cs_analyzed"] = True
+
+    # Save to history
+    st.session_state.setdefault("analysis_history", []).append({
         "doc_type": doc_type,
         "score": score,
         "n_findings": len(findings),
@@ -683,76 +309,36 @@ if analyze_btn and contract_text.strip():
 
     st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.8rem 0;'>", unsafe_allow_html=True)
 
+    # ── Urgency banner ──
+    render_urgency_banner(findings)
+
     # ── Results header ──
     st.markdown("""
     <h2 style="font-family:'Inter',sans-serif; font-size:1.5rem; font-weight:800;
-               color:#e8eaf6; margin:0 0 1.2rem; letter-spacing:-0.02em;">
+               color:#e8eaf6; margin:0.5rem 0 1.2rem; letter-spacing:-0.02em;">
       📊 Analysis Results
     </h2>
     """, unsafe_allow_html=True)
 
-    high   = sum(1 for f in findings if f["risk"] == "HIGH")
+    high = sum(1 for f in findings if f["risk"] == "HIGH")
     medium = sum(1 for f in findings if f["risk"] == "MEDIUM")
-    low    = sum(1 for f in findings if f["risk"] == "LOW")
+    low = sum(1 for f in findings if f["risk"] == "LOW")
 
-    # ── Statistics dashboard ──
+    # ── Stat cards ──
     stat_cols = st.columns(4)
-    def _stat_card(col, value, label, icon, color):
-        rgb = _hex_to_rgb(color)
-        col.markdown(f"""
-        <div style="background:rgba({rgb},0.06); border:1px solid rgba({rgb},0.2);
-                    border-radius:12px; padding:0.9rem 0.8rem; text-align:center;">
-          <div style="font-size:1.2rem; margin-bottom:0.2rem;">{icon}</div>
-          <div style="font-size:1.8rem; font-weight:900; color:{color}; line-height:1;">{value}</div>
-          <div style="font-size:0.68rem; color:rgba({rgb},0.8); letter-spacing:0.05em;
-                      text-transform:uppercase; margin-top:0.3rem;">{label}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    render_stat_card(stat_cols[0], total_clauses, "Clauses Scanned", "📝", "#8aadf4")
+    render_stat_card(stat_cols[1], high, "High Risk", "🔴", "#ff4444")
+    render_stat_card(stat_cols[2], medium, "Medium Risk", "🟠", "#ff9f43")
+    render_stat_card(stat_cols[3], low, "Low Risk", "🟡", "#ffd166")
 
-    _stat_card(stat_cols[0], total_clauses, "Clauses Scanned", "📝", "#8aadf4")
-    _stat_card(stat_cols[1], high, "High Risk", "🔴", "#ff4444")
-    _stat_card(stat_cols[2], medium, "Medium Risk", "🟠", "#ff9f43")
-    _stat_card(stat_cols[3], low, "Low Risk", "🟡", "#ffd166")
-
-    # ── Score gauge + donut + verdict ──
+    # ── Score + Donut + Verdict ──
     score_col, chart_col, verdict_col = st.columns([1, 1, 1])
 
     with score_col:
         st.markdown(render_gauge(score), unsafe_allow_html=True)
 
     with chart_col:
-        # Risk breakdown donut
-        if findings:
-            fig = go.Figure(data=[go.Pie(
-                labels=["HIGH", "MEDIUM", "LOW"],
-                values=[high, medium, low],
-                hole=0.6,
-                marker=dict(
-                    colors=["#ff4444", "#ff9f43", "#ffd166"],
-                    line=dict(color="#0a0f1e", width=2),
-                ),
-                textinfo="label+value",
-                textfont=dict(size=12, color="#e8eaf6"),
-                hovertemplate="%{label}: %{value} clause(s)<extra></extra>",
-            )])
-            fig.update_layout(
-                showlegend=False,
-                margin=dict(l=10, r=10, t=10, b=10),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                height=200,
-                annotations=[dict(
-                    text=f"<b>{len(findings)}</b><br><span style='font-size:10px;color:#7888aa'>Issues</span>",
-                    x=0.5, y=0.5, font=dict(size=22, color="#e8eaf6"),
-                    showarrow=False,
-                )],
-            )
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-        else:
-            st.markdown("""
-            <div style="display:flex; align-items:center; justify-content:center;
-                        height:200px; color:#7888aa; font-size:0.9rem;">✅ Clean!</div>
-            """, unsafe_allow_html=True)
+        render_risk_donut(high, medium, low, len(findings))
 
     with verdict_col:
         full_label, _ = get_score_label(score)
@@ -765,7 +351,6 @@ if analyze_btn and contract_text.strip():
         </div>
         """, unsafe_allow_html=True)
 
-        # Most common risk category
         if findings:
             from collections import Counter
             cat_counts = Counter(f["category"] for f in findings)
@@ -781,149 +366,64 @@ if analyze_btn and contract_text.strip():
             </div>
             """, unsafe_allow_html=True)
 
-        if not findings:
-            st.success("✅ No exploitative clauses detected!")
+    # ── Category Fairness + Radar ──
+    if findings:
+        st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.5rem 0;'>", unsafe_allow_html=True)
 
-    # ── Flagged clauses ────────────────────────────────────────────────────────
-    st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.8rem 0;'>", unsafe_allow_html=True)
+        cat_col, radar_col = st.columns([1, 1])
+        with cat_col:
+            cat_scores = render_category_scores(findings)
+        with radar_col:
+            render_radar_chart(cat_scores, FAIRNESS_CATEGORIES)
+
+    # ── Flagged Clauses (Component 4 — 5-section format) ──
+    st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.5rem 0;'>", unsafe_allow_html=True)
 
     if findings:
         st.markdown("""
-        <h2 style="font-family:'Inter',sans-serif; font-size:1.5rem; font-weight:800;
-                   color:#e8eaf6; margin:0 0 1rem; letter-spacing:-0.02em;">
-          🚩 Flagged Clauses
-        </h2>
+        <h2 style="font-family:'Inter',sans-serif; font-size:1.4rem; font-weight:800;
+                   color:#e8eaf6; margin:0 0 1rem;">🚩 Flagged Clauses</h2>
         """, unsafe_allow_html=True)
 
-        lang_code    = LANG_MAP.get(language)
-        translate_all = False
+        # Generate AI explanations if enabled
+        ai_explanations = {}
+        if st.session_state.get("use_ai_toggle", True) and groq_available():
+            with st.spinner("🧠 Generating AI-powered explanations & safer rewrites…"):
+                for idx, f in enumerate(findings):
+                    ai_explanations[idx] = explain_clause(
+                        clause_text=f.get("clause_text", ""),
+                        rule_category=f["category"],
+                        rule_explanation=f["explanation"],
+                    )
+
+        # Translate toggle
         if lang_code:
             translate_all = st.checkbox(
-                f"🌐 Translate all explanations to {language}",
-                value=True,
-                key="translate_all_explanations",
+                f"🌐 Translate all explanations to {language}", value=False,
+                key="translate_all_exp",
             )
 
-        for i, f in enumerate(findings, 1):
-            risk         = f["risk"]
-            icon         = {"HIGH": "🔴", "MEDIUM": "🟠", "LOW": "🟡"}.get(risk, "⚪")
-            confidence   = int(f.get("confidence", 0) * 100)
-            clause_id    = f.get("clause_id", "N/A")
-            clause_text  = f.get("clause_text", "")
-            match_source = f.get("match_source", "N/A")
+        for i, f in enumerate(findings):
+            ai_exp = ai_explanations.get(i)
 
-            # Coloured card header outside expander
-            st.markdown(risk_card_header(i, risk, f["category"], confidence, clause_id, match_source),
-                        unsafe_allow_html=True)
+            # Translate if needed
+            if lang_code and st.session_state.get("translate_all_exp", False) and ai_exp:
+                for key in ["what_it_means", "why_risky", "safer_alternative"]:
+                    if ai_exp.get(key):
+                        ai_exp[key] = translate_text(ai_exp[key], target=lang_code)
 
-            with st.expander(f"{icon} [{risk}]  {f['category']}  —  clause #{clause_id}", expanded=(risk == "HIGH")):
-                if clause_text:
-                    st.markdown("<p style='color:#7888aa; font-size:0.78rem; margin-bottom:0.3rem;'>CLAUSE TEXT</p>", unsafe_allow_html=True)
-                    st.code(clause_text, language=None)
+            render_clause_card(i + 1, f, ai_explanation=ai_exp)
 
-                st.markdown("<p style='color:#7888aa; font-size:0.78rem; margin-bottom:0.3rem; margin-top:0.7rem;'>MATCHED PATTERN</p>", unsafe_allow_html=True)
-                st.code(f["matched_text"], language=None)
+            # TTS button
+            tts_text = ai_exp.get("what_it_means", f["explanation"]) if ai_exp else f["explanation"]
+            tts_lang = LANGUAGES[language]["tts"]
+            render_tts_button(tts_text, label=f"🔊 Read clause {i+1}", lang=tts_lang)
 
-                explanation = f["explanation"]
-                if lang_code and translate_all:
-                    with st.spinner(f"Translating to {language}…"):
-                        explanation = translate_text(explanation, target=lang_code)
+        # ── Action Checklist ──
+        st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.5rem 0;'>", unsafe_allow_html=True)
+        render_action_checklist(findings)
 
-                color_map = {"HIGH": "#ff4444", "MEDIUM": "#ff9f43", "LOW": "#ffd166"}
-                exp_color  = color_map.get(risk, "#7888aa")
-                st.markdown(f"""
-                <div style="background:rgba(0,0,0,0.2); border-left:3px solid {exp_color};
-                            border-radius:0 8px 8px 0; padding:0.8rem 1rem; margin:0.8rem 0 0.5rem;">
-                  <span style="font-size:0.78rem; color:{exp_color}; font-weight:600;
-                               letter-spacing:0.06em;">💡 EXPLANATION</span><br>
-                  <span style="font-size:0.88rem; color:#c8cfe8; line-height:1.6;">{explanation}</span>
-                </div>
-                """, unsafe_allow_html=True)
-
-                if f.get("suggestion"):
-                    st.markdown(f"""
-                    <div style="background:rgba(0,255,136,0.05); border-left:3px solid #00ff88;
-                                border-radius:0 8px 8px 0; padding:0.8rem 1rem; margin:0.5rem 0 0.3rem;">
-                      <span style="font-size:0.78rem; color:#00ff88; font-weight:600;
-                                   letter-spacing:0.06em;">✅ SUGGESTED FIX</span><br>
-                      <span style="font-size:0.88rem; color:#c8cfe8; line-height:1.6;">{f['suggestion']}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                # ── Indian law reference badge ──
-                indian_law = f.get("indian_law", "")
-                if indian_law:
-                    st.markdown(f"""
-                    <div style="display:inline-flex; align-items:center; gap:0.4rem;
-                                background:rgba(100,149,237,0.08); border:1px solid rgba(100,149,237,0.25);
-                                border-radius:8px; padding:0.45rem 0.8rem; margin:0.5rem 0 0.2rem;">
-                      <span style="font-size:0.85rem;">⚖️</span>
-                      <span style="font-size:0.78rem; color:#8aadf4; font-weight:600;
-                                   letter-spacing:0.02em; line-height:1.5;">{indian_law}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                if language == "English":
-                    if st.button(f"🌐 Translate explanation to Hindi", key=f"translate_{i}"):
-                        hindi = translate_text(f["explanation"], target="hi")
-                        st.success(f"🇮🇳 **Hindi:** {hindi}")
-
-        # ── Next steps ────────────────────────────────────────────────────────
-        # ── Dynamic action checklist ──────────────────────────────────────────
-        st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.8rem 0;'>", unsafe_allow_html=True)
-
-        high_findings  = [f for f in findings if f["risk"] == "HIGH"]
-        med_findings   = [f for f in findings if f["risk"] == "MEDIUM"]
-        high_cats      = list(dict.fromkeys(f["category"] for f in high_findings))
-        med_cats       = list(dict.fromkeys(f["category"] for f in med_findings))
-        unique_laws    = list(dict.fromkeys(f.get("indian_law", "") for f in findings if f.get("indian_law")))
-
-        actions = []
-        step = 1
-
-        if high_findings:
-            actions.append((f"{step}", "🛑 <b style='color:#ff4444;'>Do not sign this contract yet.</b> It contains high-risk clauses that could seriously harm your rights.", "#ff4444"))
-            step += 1
-            for cat in high_cats[:3]:
-                actions.append((f"{step}", f"Ask the employer to <b>remove or rewrite</b> the <i>{cat}</i> clause before signing.", "#ff9f43"))
-                step += 1
-
-        if med_findings:
-            actions.append((f"{step}", "Negotiate clearer language for the <b style='color:#ffd166;'>MEDIUM-risk</b> clauses ("
-                           + ", ".join(f"<i>{c}</i>" for c in med_cats[:3]) + ").", "#ffd166"))
-            step += 1
-
-        if unique_laws:
-            law_list = ", ".join(f"<i>{l.split(' — ')[0]}</i>" for l in unique_laws[:4])
-            actions.append((f"{step}", f"Learn about your rights under: {law_list}.", "#8aadf4"))
-            step += 1
-
-        if high_findings:
-            actions.append((f"{step}", "Contact a <b style='color:#00ff88;'>free legal aid NGO</b> or labour helpline (Shram Suvidha: <b>1800-11-4000</b>) before signing.", "#00ff88"))
-            step += 1
-
-        actions.append((f"{step}", "Keep a <b>written copy</b> of every negotiated change signed by both parties.", "#7888aa"))
-
-        st.markdown("""
-        <h2 style="font-family:'Inter',sans-serif; font-size:1.3rem; font-weight:800;
-                   color:#e8eaf6; margin:0 0 1rem; letter-spacing:-0.02em;">
-          🎯 What Should I Do?
-        </h2>
-        """, unsafe_allow_html=True)
-
-        for num, text, color in actions:
-            rgb = _hex_to_rgb(color)
-            st.markdown(f"""
-            <div style="display:flex; gap:0.8rem; align-items:flex-start; margin-bottom:0.7rem;">
-              <div style="flex-shrink:0; width:32px; height:32px; border-radius:50%;
-                          background:rgba({rgb},0.12); border:1px solid rgba({rgb},0.3);
-                          display:flex; align-items:center; justify-content:center;
-                          font-size:0.82rem; font-weight:800; color:{color};">{num}</div>
-              <p style="color:#c8cfe8; font-size:0.88rem; margin:0; line-height:1.6; padding-top:0.2rem;">{text}</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # ── Download + WhatsApp share ──────────────────────────────────────────
+        # ── Download + WhatsApp ──
         st.markdown("<div style='margin-top:1.4rem;'>", unsafe_allow_html=True)
         report = generate_text_report(findings, score, doc_type)
 
@@ -937,41 +437,25 @@ if analyze_btn and contract_text.strip():
                 use_container_width=True,
             )
         with wa_col:
-            _n_high = len(high_findings)
-            _n_total = len(findings)
             wa_msg = (
-                f"I analyzed my contract using *Contract Shield* 🛡\n"
-                f"\n"
+                f"I analyzed my contract using *Contract Shield* 🛡\n\n"
                 f"📊 Fairness Score: *{score}/100*\n"
-                f"🚨 Found *{_n_high} HIGH-risk* and *{_n_total} total* flagged clauses.\n"
-                f"\n"
+                f"🚨 Found *{high} HIGH-risk* and *{len(findings)} total* flagged clauses.\n\n"
                 f"Get the free tool: https://github.com/himanig20/contract-shield"
             )
-            import urllib.parse
             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_msg)}"
             st.markdown(f"""
             <a href="{wa_url}" target="_blank" style="text-decoration:none;">
               <div style="background:linear-gradient(135deg,#25D366,#128C7E); border-radius:10px;
                           padding:0.68rem 1rem; text-align:center; font-weight:700;
-                          color:white; font-size:0.92rem; letter-spacing:0.01em;
-                          transition:transform 0.18s, box-shadow 0.18s; cursor:pointer;
-                          box-shadow:0 4px 14px rgba(37,211,102,0.3);">
+                          color:white; font-size:0.92rem; cursor:pointer;
+                          box-shadow:0 4px 14px rgba(37,211,102,0.3);
+                          transition:transform 0.18s, box-shadow 0.18s;">
                 📱  Share on WhatsApp
               </div>
             </a>
             """, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
-
-        # Store analysis context for the floating widget
-        _findings_for_widget = "\n".join(
-            f"- [{f['risk']}] {f['category']}: {f['explanation'][:120]}"
-            for f in findings
-        ) or "No risky clauses were flagged."
-        st.session_state["cs_findings"] = _findings_for_widget
-        st.session_state["cs_score"]    = score
-        st.session_state["cs_analyzed"] = True
-
-
 
     else:
         st.markdown("""
@@ -980,11 +464,14 @@ if analyze_btn and contract_text.strip():
           <div style="font-size:3rem;">✅</div>
           <h3 style="color:#00ff88; margin:0.5rem 0 0.3rem; font-size:1.2rem;">No exploitative clauses detected</h3>
           <p style="color:#7888aa; font-size:0.88rem; margin:0;">
-            The contract appears relatively fair. This does not guarantee it is perfect —
-            consider having a legal professional review it regardless.
+            The contract appears fair. Still consider having a legal professional review it.
           </p>
         </div>
         """, unsafe_allow_html=True)
+
+    # ── Chatbot Section ──
+    st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:2rem 0;'>", unsafe_allow_html=True)
+    render_chatbot(language=language)
 
 elif analyze_btn and not contract_text.strip():
     st.markdown("""
@@ -994,330 +481,10 @@ elif analyze_btn and not contract_text.strip():
     </div>
     """, unsafe_allow_html=True)
 
-# ── Floating AI Chat Widget ─────────────────────────────────────────────────────
-import streamlit.components.v1 as components
+# ── Show chatbot if already analyzed (on page reruns) ──
+elif st.session_state.get("cs_analyzed", False):
+    st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:2rem 0;'>", unsafe_allow_html=True)
+    render_chatbot(language=language)
 
-_widget_key      = os.environ.get("GROQ_API_KEY", "").strip()
-_widget_key      = _widget_key if _widget_key and not _widget_key.startswith("your_") else ""
-_widget_findings = st.session_state.get("cs_findings", "")
-_widget_score    = st.session_state.get("cs_score", "N/A")
-_widget_analyzed = st.session_state.get("cs_analyzed", False)
-
-_greeting = (
-    f"Hi! 👋 I've analyzed your contract. Fairness score: **{_widget_score}/100**. "
-    "Ask me anything about the flagged clauses!"
-    if _widget_analyzed
-    else "Hi! 👋 I'm Contract Shield AI. Paste and analyze a contract above, then I can answer your questions about it."
-)
-
-_system_prompt = (
-    "You are Contract Shield AI, a legal assistant helping informal workers in India understand their contracts. "
-    + (
-        f"You have analyzed this contract and found these issues:\n{_widget_findings}\n"
-        f"The fairness score is {_widget_score}/100. "
-        if _widget_analyzed else ""
-    )
-    + "Answer questions simply and clearly. Always mention relevant Indian labor laws. "
-    "Never give formal legal advice but explain rights in plain language."
-)
-
-_sub_status = "Contract analyzed ✅" if _widget_analyzed else "Analyze a contract first"
-
-_widget_html = f"""
-<style>
-  #cs-fab {{
-    position:fixed; bottom:2rem; right:2rem; width:62px; height:62px;
-    border-radius:50%; background:linear-gradient(135deg,#00ff88,#00cc6a);
-    box-shadow:0 6px 28px rgba(0,255,136,0.45);
-    display:flex; align-items:center; justify-content:center;
-    cursor:pointer; z-index:9999; border:none; font-size:1.6rem;
-    transition:transform .22s,box-shadow .22s;
-  }}
-  #cs-fab:hover {{ transform:scale(1.1) translateY(-3px); box-shadow:0 10px 36px rgba(0,255,136,0.6); }}
-  .cs-pulse {{
-    position:absolute; top:-3px; right:-3px; width:14px; height:14px;
-    border-radius:50%; background:#ff4444; border:2px solid #0a0f1e;
-    animation:csPulse 2s infinite;
-  }}
-  @keyframes csPulse {{ 0%,100%{{transform:scale(1);opacity:1;}} 50%{{transform:scale(1.4);opacity:0.6;}} }}
-
-  #cs-panel {{
-    position:fixed; bottom:6.5rem; right:1.5rem; width:370px; height:510px;
-    background:#0d1529; border:1px solid rgba(0,255,136,0.2); border-radius:20px;
-    box-shadow:0 24px 64px rgba(0,0,0,0.7); display:flex; flex-direction:column;
-    z-index:9998; transform:translateY(20px) scale(0.94); opacity:0;
-    pointer-events:none; transition:all .28s cubic-bezier(.34,1.56,.64,1);
-    overflow:hidden; font-family:'Inter',-apple-system,sans-serif;
-  }}
-  #cs-panel.cs-open {{ transform:translateY(0) scale(1); opacity:1; pointer-events:all; }}
-
-  .cs-ph {{
-    background:linear-gradient(135deg,#111c35,#0f1a30); padding:.9rem 1rem;
-    display:flex; align-items:center; justify-content:space-between;
-    border-bottom:1px solid rgba(0,255,136,0.1); flex-shrink:0;
-  }}
-  .cs-ph-info {{ display:flex; align-items:center; gap:.6rem; }}
-  .cs-ph-icon {{ font-size:1.4rem; filter:drop-shadow(0 0 8px rgba(0,255,136,0.5)); }}
-  .cs-ph-title {{ font-weight:800; font-size:.9rem; color:#e8eaf6; }}
-  .cs-ph-sub {{ font-size:.65rem; color:#7888aa; margin-top:1px; }}
-  .cs-close {{
-    background:rgba(255,255,255,0.06); border:none; color:#7888aa;
-    border-radius:8px; width:28px; height:28px; cursor:pointer;
-    font-size:.95rem; display:flex; align-items:center; justify-content:center;
-  }}
-  .cs-close:hover {{ background:rgba(255,68,68,0.15); color:#ff4444; }}
-
-  #cs-msgs {{
-    flex:1; overflow-y:auto; padding:.9rem;
-    display:flex; flex-direction:column; gap:.7rem; scroll-behavior:smooth;
-  }}
-  #cs-msgs::-webkit-scrollbar {{ width:4px; }}
-  #cs-msgs::-webkit-scrollbar-thumb {{ background:#162040; border-radius:10px; }}
-
-  .cs-bot {{
-    align-self:flex-start; background:#111c35; border:1px solid rgba(0,255,136,0.15);
-    border-radius:14px 14px 14px 4px; padding:.6rem .8rem; max-width:88%;
-    font-size:.82rem; line-height:1.6; color:#e8eaf6;
-  }}
-  .cs-usr {{
-    align-self:flex-end; background:linear-gradient(135deg,#00ff88,#00cc6a);
-    border-radius:14px 14px 4px 14px; padding:.6rem .8rem; max-width:82%;
-    font-size:.82rem; line-height:1.6; color:#0a0f1e; font-weight:600;
-  }}
-  .cs-lbl {{ font-size:.6rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; margin-bottom:.2rem; opacity:.65; }}
-
-  .cs-typing {{
-    align-self:flex-start; background:#111c35; border:1px solid rgba(0,255,136,0.15);
-    border-radius:14px 14px 14px 4px; padding:.65rem .9rem; display:flex; gap:5px; align-items:center;
-  }}
-  .cs-dot {{ width:7px; height:7px; background:#00ff88; border-radius:50%; animation:csDot 1.2s infinite; }}
-  .cs-dot:nth-child(2) {{ animation-delay:.2s; }}
-  .cs-dot:nth-child(3) {{ animation-delay:.4s; }}
-  @keyframes csDot {{ 0%,80%,100%{{transform:scale(.6);opacity:.4;}} 40%{{transform:scale(1);opacity:1;}} }}
-
-  #cs-sugg {{ padding:0 .9rem .5rem; display:flex; flex-direction:column; gap:.35rem; }}
-  .cs-sugg-chip {{
-    background:#0a1220; border:1px solid rgba(0,255,136,0.1); border-radius:8px;
-    padding:.4rem .7rem; font-size:.76rem; color:#c8cfe8; cursor:pointer;
-  }}
-  .cs-sugg-chip:hover {{ border-color:rgba(0,255,136,.35); background:rgba(0,255,136,.05); }}
-
-  .cs-hindi-bar {{
-    padding:.35rem .9rem; display:flex; align-items:center; gap:.5rem;
-    background:#0a0f1e; border-top:1px solid rgba(255,255,255,.04); flex-shrink:0;
-  }}
-  .cs-hindi-lbl {{ font-size:.7rem; color:#7888aa; }}
-  .cs-toggle {{
-    width:32px; height:17px; background:#162040; border-radius:10px;
-    position:relative; cursor:pointer; border:none;
-  }}
-  .cs-toggle.on {{ background:#00cc6a; }}
-  .cs-toggle::after {{
-    content:''; position:absolute; top:2px; left:2px;
-    width:13px; height:13px; background:white; border-radius:50%; transition:left .2s;
-  }}
-  .cs-toggle.on::after {{ left:17px; }}
-
-  .cs-input-row {{
-    padding:.65rem; border-top:1px solid rgba(255,255,255,.06);
-    display:flex; gap:.45rem; flex-shrink:0; background:#0a0f1e;
-  }}
-  #cs-input {{
-    flex:1; background:#111c35; border:1px solid rgba(0,255,136,.2);
-    border-radius:10px; color:#e8eaf6; font-family:'Inter',sans-serif;
-    font-size:.83rem; padding:.5rem .8rem; outline:none;
-  }}
-  #cs-input:focus {{ border-color:#00ff88; }}
-  #cs-input::placeholder {{ color:#7888aa; }}
-  #cs-send {{
-    background:linear-gradient(135deg,#00ff88,#00cc6a); border:none; border-radius:10px;
-    color:#0a0f1e; font-weight:700; font-size:1rem; width:38px; cursor:pointer;
-  }}
-  #cs-send:hover {{ transform:scale(1.08); box-shadow:0 4px 14px rgba(0,255,136,.4); }}
-</style>
-
-<button id="cs-fab" onclick="csToggle()" title="Ask Contract Shield AI">
-  🤖<div class="cs-pulse"></div>
-</button>
-
-<div id="cs-panel">
-  <div class="cs-ph">
-    <div class="cs-ph-info">
-      <div class="cs-ph-icon">🤖</div>
-      <div>
-        <div class="cs-ph-title">Contract Shield AI</div>
-        <div class="cs-ph-sub">Llama 3.3 · {_sub_status}</div>
-      </div>
-    </div>
-    <button class="cs-close" onclick="csToggle()">✕</button>
-  </div>
-  <div id="cs-msgs">
-    <div class="cs-bot">
-      <div class="cs-lbl" style="color:#00ff88;">Contract Shield AI</div>
-      {_greeting}
-    </div>
-  </div>
-  <div id="cs-sugg">
-    <div class="cs-sugg-chip" onclick="csAsk(this)">💬 What's the most dangerous clause?</div>
-    <div class="cs-sugg-chip" onclick="csAsk(this)">💬 Can my employer deduct salary without consent?</div>
-    <div class="cs-sugg-chip" onclick="csAsk(this)">💬 Is this penalty clause legal in India?</div>
-  </div>
-  <div class="cs-hindi-bar">
-    <span class="cs-hindi-lbl">🇮🇳 Hindi mode</span>
-    <button class="cs-toggle" id="cs-htoggle" onclick="csToggleHindi()"></button>
-    <span class="cs-hindi-lbl" id="cs-hstatus">off</span>
-  </div>
-  <div class="cs-input-row">
-    <input id="cs-input" type="text" placeholder="Ask about your contract…"
-           onkeydown="if(event.key==='Enter')csSend()"/>
-    <button id="cs-send" onclick="csSend()">➤</button>
-  </div>
-</div>
-
-<script>
-(function(){{
-  const API_KEY = {repr(_widget_key)};
-  const SYS_PROMPT = {repr(_system_prompt)};
-  let panelOpen=false, hindiMode=false, history=[];
-
-  const fab = document.getElementById('cs-fab');
-  const panel = document.getElementById('cs-panel');
-  const parentDoc = window.parent.document;
-
-  const oldFab = parentDoc.getElementById('cs-fab');
-  const oldPanel = parentDoc.getElementById('cs-panel');
-  if(oldFab) oldFab.remove();
-  if(oldPanel) oldPanel.remove();
-
-  const style = document.querySelector('style');
-  const oldStyle = parentDoc.getElementById('cs-widget-style');
-  if(oldStyle) oldStyle.remove();
-  const newStyle = parentDoc.createElement('style');
-  newStyle.id = 'cs-widget-style';
-  newStyle.textContent = style.textContent;
-  parentDoc.head.appendChild(newStyle);
-
-  parentDoc.body.appendChild(fab);
-  parentDoc.body.appendChild(panel);
-
-  window.parent.csToggle = function() {{
-    panelOpen = !panelOpen;
-    parentDoc.getElementById('cs-panel').classList.toggle('cs-open', panelOpen);
-    if(panelOpen) setTimeout(()=>parentDoc.getElementById('cs-input').focus(), 300);
-  }};
-  fab.onclick = window.parent.csToggle;
-  parentDoc.querySelector('.cs-close').onclick = window.parent.csToggle;
-
-  window.parent.csToggleHindi = function() {{
-    hindiMode = !hindiMode;
-    parentDoc.getElementById('cs-htoggle').classList.toggle('on', hindiMode);
-    parentDoc.getElementById('cs-hstatus').textContent = hindiMode ? 'on' : 'off';
-  }};
-  parentDoc.getElementById('cs-htoggle').onclick = window.parent.csToggleHindi;
-
-  function addBubble(cls, html, labelColor) {{
-    const wrap = parentDoc.getElementById('cs-msgs');
-    const d = parentDoc.createElement('div');
-    d.className = cls;
-    const lbl = parentDoc.createElement('div');
-    lbl.className = 'cs-lbl'; lbl.style.color = labelColor;
-    lbl.textContent = cls==='cs-usr' ? 'You' : 'Contract Shield AI';
-    const body = parentDoc.createElement('div');
-    body.innerHTML = html.replace(/\\n/g, '<br>');
-    d.appendChild(lbl); d.appendChild(body);
-    wrap.appendChild(d); wrap.scrollTop = wrap.scrollHeight;
-    const sugg = parentDoc.getElementById('cs-sugg');
-    if(sugg) sugg.style.display='none';
-    return d;
-  }}
-
-  function showTyping() {{
-    const wrap = parentDoc.getElementById('cs-msgs');
-    const d = parentDoc.createElement('div');
-    d.className='cs-typing'; d.id='cs-typing';
-    d.innerHTML='<div class="cs-dot"></div><div class="cs-dot"></div><div class="cs-dot"></div>';
-    wrap.appendChild(d); wrap.scrollTop=wrap.scrollHeight;
-  }}
-  function hideTyping() {{ const el=parentDoc.getElementById('cs-typing'); if(el) el.remove(); }}
-
-  async function translate(text, target) {{
-    try {{
-      const url=`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${{target}}&dt=t&q=${{encodeURIComponent(text)}}`;
-      const d=await(await fetch(url)).json();
-      return d[0].map(x=>x[0]).join('');
-    }} catch(e) {{ return text; }}
-  }}
-
-  async function csSendFn() {{
-    if(!API_KEY) {{
-      addBubble('cs-bot','⚠️ No Groq API key. Add it to .env and restart.','#ff4444');
-      return;
-    }}
-    const inp=parentDoc.getElementById('cs-input');
-    let txt=inp.value.trim(); if(!txt) return; inp.value='';
-    let displayTxt=txt, apiTxt=txt;
-    if(hindiMode) apiTxt=await translate(txt,'en');
-    addBubble('cs-usr',displayTxt,'rgba(10,15,30,0.55)');
-    history.push({{role:'user',content:apiTxt}});
-    showTyping();
-    try {{
-      const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{{
-        method:'POST',
-        headers:{{'Authorization':`Bearer ${{API_KEY}}`,'Content-Type':'application/json'}},
-        body:JSON.stringify({{model:'llama-3.3-70b-versatile',temperature:0.55,max_tokens:512,
-          messages:[{{role:'system',content:SYS_PROMPT}},...history.slice(-12)]}})
-      }});
-      const data=await resp.json();
-      if(data.error) throw new Error(data.error.message);
-      let bot=data.choices[0].message.content.trim();
-      history.push({{role:'assistant',content:bot}});
-      if(hindiMode) bot=await translate(bot,'hi');
-      hideTyping();
-      addBubble('cs-bot',bot,'#00ff88');
-    }} catch(e) {{
-      hideTyping();
-      addBubble('cs-bot',`⚠️ Error: ${{e.message}}`,'#ff4444');
-    }}
-  }}
-
-  window.parent.csSend = csSendFn;
-  parentDoc.getElementById('cs-send').onclick = csSendFn;
-  parentDoc.getElementById('cs-input').onkeydown = function(e) {{
-    if(e.key==='Enter') csSendFn();
-  }};
-
-  window.parent.csAsk = function(el) {{
-    const txt=el.textContent.replace(/^💬\\s*/,'').trim();
-    parentDoc.getElementById('cs-input').value=txt;
-    const sugg=parentDoc.getElementById('cs-sugg');
-    if(sugg) sugg.style.display='none';
-    csSendFn();
-  }};
-  parentDoc.querySelectorAll('.cs-sugg-chip').forEach(chip => {{
-    chip.onclick = function() {{ window.parent.csAsk(this); }};
-  }});
-}})();
-</script>
-"""
-
-components.html(_widget_html, height=0, scrolling=False)
-
-# ── Footer ─────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div style="
-    margin-top: 4rem;
-    border-top: 1px solid rgba(255,255,255,0.07);
-    padding: 2rem 0 1.5rem;
-    text-align: center;
-">
-  <div style="font-size:1.8rem; margin-bottom:0.5rem;">🛡</div>
-  <p style="color:#7888aa; font-size:0.78rem; line-height:1.8; margin:0;">
-    <b style="color:rgba(255,255,255,0.35);">Contract Shield</b> &nbsp;·&nbsp;
-    Built for social impact 🇮🇳 &nbsp;·&nbsp;
-    <span style="color:rgba(255,68,68,0.7);">Not legal advice</span>
-  </p>
-  <p style="color:rgba(255,255,255,0.18); font-size:0.72rem; margin:0.4rem 0 0;">
-    ⚠️ This tool provides automated analysis only. Always consult a qualified lawyer before signing any contract.
-  </p>
-</div>
-""", unsafe_allow_html=True)
+# ── Footer ──
+render_footer()
