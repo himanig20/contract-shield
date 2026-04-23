@@ -4,7 +4,7 @@ from config import FAIRNESS_CATEGORIES
 import os
 import base64
 
-def get_logo_html():
+def get_logo_html(max_height="48px"):
     """Helper to load user logo from assets or provide text fallback"""
     import base64
     logo_path_png = "assets/logo.png"
@@ -13,11 +13,11 @@ def get_logo_html():
     if os.path.exists(logo_path_png):
         with open(logo_path_png, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        return f'<img src="data:image/png;base64,{encoded_string}" style="max-height: 48px;">'
+        return f'<img src="data:image/png;base64,{encoded_string}" style="max-height: {max_height}; object-fit: contain;">'
     elif os.path.exists(logo_path_svg):
         with open(logo_path_svg, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-        return f'<img src="data:image/svg+xml;base64,{encoded_string}" style="max-height: 48px;">'
+        return f'<img src="data:image/svg+xml;base64,{encoded_string}" style="max-height: {max_height}; object-fit: contain;">'
     else:
         return '<span style="font-weight: 800; font-size: 1.5rem; color: var(--brand-primary);">Contract Shield</span>'
 
@@ -32,15 +32,12 @@ def hex_to_rgb(h: str) -> str:
 # HERO BANNER
 # ───────────────────────────────────────────────────────────────────────────────
 def render_hero():
-    logo_html = get_logo_html()
+    logo_html = get_logo_html(max_height="220px")
     st.markdown(f"""
-    <div style="padding: 2rem 0 3rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border);">
-      <div style="margin-bottom: 1.5rem;">
+    <div style="padding: 1rem 0 3rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border);">
+      <div style="margin-bottom: 1.5rem; display: flex; justify-content: flex-start;">
           {logo_html}
       </div>
-      <h1 class="text-heading" style="font-size: 2.5rem; margin: 0 0 1rem;">
-        Enterprise-Grade Contract Analysis
-      </h1>
       <p class="text-subtitle" style="font-size: 1.1rem; max-width: 600px; margin: 0 0 1.5rem;">
         Instantly analyze legal risks, unfair termination clauses, and predatory interest rates using advanced NLP and Machine Learning. Built to protect and empower informal workers.
       </p>
