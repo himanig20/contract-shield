@@ -304,6 +304,8 @@ if clear_btn:
     st.session_state["contract_input"] = ""
     st.session_state["pdf_upload"] = None
     st.session_state["cs_analyzed"] = False
+    st.session_state["cs_analyzed_btn_pressed"] = False
+    st.session_state["cs_last_contract"] = ""
     clear_chat()
     st.rerun()
 
@@ -311,7 +313,11 @@ if clear_btn:
 # ANALYSIS RESULTS
 # ══════════════════════════════════════════════════════════════════════════════
 if analyze_btn and contract_text.strip():
-    cleaned_text = preprocess(contract_text)
+    st.session_state["cs_last_contract"] = contract_text
+    st.session_state["cs_analyzed_btn_pressed"] = True
+
+if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.get("cs_last_contract", "").strip():
+    cleaned_text = preprocess(st.session_state["cs_last_contract"])
     findings = analyze_contract(cleaned_text)
     score = calculate_score(findings)
     label, emoji = get_score_label(score)
