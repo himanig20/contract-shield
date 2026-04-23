@@ -15,12 +15,24 @@ def inject_floating_chat():
     api_key = api_key_session if api_key_session else GROQ_API_KEY
     
     # Prepare system prompt for the JS bot
+    # Base: friendly general assistant with legal expertise
     system_prompt = (
-        f"You are the Contract Shield AI Assistant. You help users understand their legal rights.\n"
-        f"The user has uploaded a contract with score {score}/100.\n"
-        f"Contract context: {contract[:3000]}\n"
-        f"Findings: {findings}\n"
+        "You are Contract Shield AI — a helpful, friendly, and knowledgeable assistant. "
+        "You specialize in Indian labor law, tenant rights, and loan agreements — but you can discuss ANY topic the user brings up. "
+        "You are warm, conversational, and use simple language. You never refuse general questions like greetings, general advice, or random topics. "
+        "When asked about contracts, legal terms, or rights, give clear and practical answers. "
+        "Keep responses concise (2-4 sentences) unless the user asks for detail. "
+        "Always be encouraging and supportive.\n\n"
     )
+    
+    # If a contract has been analyzed, add it as optional context
+    if contract and score:
+        system_prompt += (
+            f"OPTIONAL CONTEXT (only reference this if the user asks about their contract): "
+            f"The user has analyzed a contract. Fairness Score: {score}/100. "
+            f"Key findings: {findings[:1500]}\n"
+            f"Contract snippet: {contract[:1500]}\n"
+        )
     
     # Escape strings safely for JS insertion
     system_prompt_safe = json.dumps(system_prompt)
@@ -177,7 +189,7 @@ def inject_floating_chat():
                         <div id="cs-bot-close" style="cursor:pointer; font-size:18px; color:#7888aa; padding:4px;">✖</div>
                     </div>
                     <div id="cs-bot-body">
-                        <div class="cs-msg cs-msg-bot">Hi! 👋 How can I help you understand your contract today?</div>
+                        <div class="cs-msg cs-msg-bot">Hi! 👋 I'm Contract Shield AI. Ask me anything — legal questions, contract advice, or just say hello! 😊</div>
                     </div>
                     <div id="cs-typing" class="cs-typing">AI is thinking...</div>
                     <div id="cs-bot-input-area">
