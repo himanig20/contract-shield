@@ -27,19 +27,17 @@ Most workers can't afford a lawyer. **Contract Shield** is a free, multilingual 
 | Feature | Description |
 |---|---|
 | 🔍 **Smart Clause Detection** | Pattern-matching engine with 10 risk rules covering Indian labor, rental, and loan law |
-| 📊 **Fairness Score** | Visual gauge (0–100) with color-coded risk assessment |
-| 🍩 **Risk Breakdown Chart** | Interactive Plotly donut chart showing HIGH/MEDIUM/LOW distribution |
+| 📊 **Fairness Score & Status** | Visual gauge (0–100) with a sticky summary header that remains visible while scrolling |
+| 🖍️ **DocuSign-Style Highlighting** | Dual-tab view showing a breakdown of clauses vs text overlay highlights on the exact original document |
 | ⚖️ **Indian Law References** | Each flagged clause links to the specific Act & Section it may violate |
-| 🎯 **Dynamic Action Checklist** | "What Should I Do?" steps generated from your actual findings |
-| 📄 **PDF Upload** | Upload contract PDFs — text extracted automatically via pdfplumber |
+| 🤖 **Contract Shield AI (Llama 70B)** | Expandable floating co-pilot that answers exact context-aware questions about your specific contract |
+| 🎬 **Cinematic Loading States** | Custom animated skeleton loaders for a premium waiting experience during logic execution |
+| 📄 **PDF & Image Upload** | Upload contracts — text extracted automatically via pdfplumber/OCR |
 | 🌐 **Multilingual Support** | Output in English, Hindi, Marathi, or Bengali |
-| 🤖 **AI Chatbot (Groq/Llama 3)** | Floating chat assistant that answers contract questions in plain language |
 | 💬 **Hindi Mode for Chatbot** | Toggle to ask questions and receive answers in Hindi |
-| 📱 **WhatsApp Sharing** | One-click share your results with friends and family |
-| 📥 **Report Download** | Full analysis report as .txt file |
-| 🏭 **Sample Contracts** | 3 built-in exploitative contract samples for instant testing |
+| 🏭 **Sample Contracts** | Built-in exploitative contract samples (Labor, Rental, Loan) for instant testing |
 | 🕒 **Session History** | Tracks your last 3 analyses in the sidebar |
-| 🎨 **Premium Dark UI** | Award-worthy dark theme with glassmorphism, gradients, and micro-animations |
+| 🎨 **Corporate Identity UI** | Bespoke 'Slate & Teal' light design system, powered by a native Streamlit configuration architecture |
 
 ---
 
@@ -89,14 +87,13 @@ The app will open at **http://localhost:8501** 🎉
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | Streamlit + Custom HTML/CSS/JS |
-| **Contract Analysis** | Regex + keyword pattern matching engine |
-| **AI Chatbot** | Groq Cloud API (Llama 3 8B) |
-| **PDF Parsing** | pdfplumber |
-| **Charts** | Plotly |
+| **Frontend Framework** | Streamlit + Custom HTML/CSS/JS Injection |
+| **Logic Engine** | Regex + keyword pattern matching engine (`rules.py`) |
+| **AI Co-pilot** | Groq Cloud API (Llama 3 70B) |
+| **PDF/OCR** | pdfplumber |
+| **Visualizations** | Plotly |
 | **Translation** | deep-translator (Google Translate) |
-| **Environment** | python-dotenv |
-| **Styling** | Custom dark theme with CSS variables, glassmorphism, SVG gauges |
+| **Styling** | Native `.streamlit/config.toml` + UI Component architecture |
 
 ---
 
@@ -104,13 +101,22 @@ The app will open at **http://localhost:8501** 🎉
 
 ```
 contract-shield/
-├── main.py              # Main Streamlit application + UI
-├── rules.py             # Risk detection rules with Indian law references
-├── utils.py             # Scoring, translation, preprocessing utilities
+├── main.py              # Main application entry point & dashboard
+├── config.py            # Global variables, models, and API keys
+├── rules.py             # Risk detection rules with Indian law logic
+├── utils.py             # Scoring and general utilities
 ├── requirements.txt     # Python dependencies
-├── .env                 # API keys (not committed to git)
-├── .gitignore           # Ignores .env and other sensitive files
-└── README.md            # You are here!
+├── .streamlit/
+│   └── config.toml      # Global light-mode design system enforcer
+├── ui/
+│   ├── css.py           # Custom global styles and spacing
+│   ├── components.py    # Modular UI elements (gauges, highlights, hero)
+│   ├── charts.py        # Plotly chart definitions
+│   └── floating_chat.py # JS injection for the AI Co-pilot sidebar
+├── services/
+│   ├── groq_client.py   # AI execution and prompting
+│   └── translator.py    # Language localization mapping
+└── README.md            
 ```
 
 ---
