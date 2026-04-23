@@ -26,12 +26,16 @@ def inject_floating_chat():
     )
     
     # If a contract has been analyzed, add it as optional context
+    # Keep it short to avoid API payload issues
     if contract and score:
+        # Abbreviate findings (first 600 chars) and contract snippet (first 800 chars)
+        short_findings = findings[:600].replace('\n', ' ') if findings else "None"
+        short_contract = contract[:800].replace('\n', ' ') if contract else "None"
         system_prompt += (
-            f"OPTIONAL CONTEXT (only reference this if the user asks about their contract): "
-            f"The user has analyzed a contract. Fairness Score: {score}/100. "
-            f"Key findings: {findings[:1500]}\n"
-            f"Contract snippet: {contract[:1500]}\n"
+            f"CONTRACT CONTEXT (use when user asks about their contract): "
+            f"Fairness Score: {score}/100. "
+            f"Findings summary: {short_findings}. "
+            f"Contract excerpt: {short_contract}"
         )
     
     # Escape strings safely for JS insertion
@@ -245,30 +249,36 @@ def inject_floating_chat():
                     const reqBody = {{
                         model: "llama-3.3-70b-versatile",
                         messages: messages,
-                        temperature: 0.5,
-                        max_tokens: 500
+                        temperature: 0.6,
+                        max_tokens: 600
                     }};
                     
-                    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {{
-                        method: "POST",
-                        headers: {{
-                            "Content-Type": "application/json",
-                            "Authorization": "Bearer " + win.__cs_api_key
-                        }},
-                        body: JSON.stringify(reqBody)
-                    }});
+                    let res, data;
+                    try {{
+                        res = await win.fetch("https://api.groq.com/openai/v1/chat/completions", {{
+                            method: "POST",
+                            headers: {{
+                                "Content-Type": "application/json",
+                                "Authorization": "Bearer " + win.__cs_api_key
+                            }},
+                            body: JSON.stringify(reqBody)
+                        }});
+                        data = await res.json();
+                    }} catch (fetchErr) {{
+                        appendMessage("❌ Could not reach Groq API. Check your internet/API key. Error: " + fetchErr.message, false);
+                        return;
+                    }}
                     
-                    const data = await res.json();
-                    
-                    if (res.ok && data.choices) {{
+                    if (res.ok && data.choices && data.choices.length > 0) {{
                         const reply = data.choices[0].message.content;
                         win.__cs_chat_history.push({{ role: "assistant", content: reply }});
                         appendMessage(reply, false);
                     }} else {{
-                        appendMessage("❌ Error fetching response: " + (data.error?.message || "Unknown API Error"), false);
+                        const errMsg = data?.error?.message || JSON.stringify(data) || "Unknown error";
+                        appendMessage("❌ API Error: " + errMsg, false);
                     }}
                 }} catch (e) {{
-                    appendMessage("❌ Network Error: " + e.message, false);
+                    appendMessage("❌ Unexpected error: " + e.message, false);
                 }} finally {{
                     typing.style.display = 'none';
                 }}
