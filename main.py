@@ -12,7 +12,7 @@ load_dotenv()
 
 # ── Core imports ──────────────────────────────────────────────────────────────
 from rules import analyze_contract, split_clauses
-from utils import calculate_score, get_score_label, preprocess, generate_text_report
+from utils import calculate_score, calculate_category_scores, get_score_label, preprocess, generate_text_report
 from config import LANGUAGES, CONTRACT_TYPES, FAIRNESS_CATEGORIES, GROQ_API_KEY
 from services.groq_client import explain_clause, is_available as groq_available
 from services.translator import translate_text
@@ -373,7 +373,8 @@ if analyze_btn and contract_text.strip():
 
         cat_col, radar_col = st.columns([1, 1])
         with cat_col:
-            cat_scores = render_category_scores(findings)
+            cat_scores = calculate_category_scores(findings)
+            render_category_scores(cat_scores)
         with radar_col:
             render_radar_chart(cat_scores, FAIRNESS_CATEGORIES)
 

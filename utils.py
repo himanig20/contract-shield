@@ -6,30 +6,80 @@ def calculate_score(findings):
     if not findings:
         return 100
 
-    score = 100
-    weights = {'HIGH': 25, 'MEDIUM': 12, 'LOW': 5}
-    category_counts = {}
+    # Sort by severity so HIGH risks apply first (gets full deduction, rest decay)
+    sorted_findings = sorted(
+        findings,
+        key=lambda f: {"HIGH": 3, "MEDIUM": 2, "LOW": 1}.get(f.get("risk", "LOW"), 0),
+        reverse=True,
+    )
+
+    risk_counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    total_penalty = 0.0
+
+    # Base penalties per tier — each subsequent finding in the same tier is worth less
+    BASE = {"HIGH": 20.0, "MEDIUM": 10.0, "LOW": 4.0}
+    DECAY = {"HIGH": 0.70, "MEDIUM": 0.72, "LOW": 0.75}
+
+    for f in sorted_findings:
+        risk = f.get("risk", "LOW")
+        n = risk_counts[risk]                          # how many of this tier seen so far
+        penalty = BASE[risk] * (DECAY[risk] ** n)      # asymptotic decay
+        total_penalty += penalty
+        risk_counts[risk] += 1
+
+    score = max(0.0, 100.0 - total_penalty)
+
+    # Enforce score bands based on highest risk present
+    if risk_counts["HIGH"] >= 3:
+        score = min(score, 14)   # Extreme band  (0–14)
+    elif risk_counts["HIGH"] >= 1:
+        score = min(score, 44)   # Serious band  (15–44)
+    elif risk_counts["MEDIUM"] >= 2:
+        score = min(score, 74)   # Moderate band (45–74)
+
+    return int(round(score))
+
+
+def calculate_category_scores(findings):
+    """Return per-category fairness scores (0–100) for radar charts."""
+    CAT_MAP = {
+        "Unfair Termination": "Termination",
+        "Non-Compete Clause": "Termination",
+        "Unlawful Eviction": "Termination",
+        "Illegal Wage Deduction": "Wage",
+        "Forced Overtime": "Wage",
+        "Privacy Concern": "Privacy",
+        "Liability Waiver": "Liability",
+        "Excessive Penalty": "Liability",
+        "Predatory Interest Rate": "Liability",
+    }
+    cat_scores = {"Wage": 100.0, "Termination": 100.0, "Privacy": 100.0,
+                  "Liability": 100.0, "Renewal": 100.0}
+    counts = {k: 0 for k in cat_scores}
 
     for f in findings:
-        score -= weights.get(f['risk'], 0)
-        category = f.get('category', 'Unknown')
-        category_counts[category] = category_counts.get(category, 0) + 1
+        cat = CAT_MAP.get(f.get("category", ""), None)
+        if cat is None:
+            continue
+        risk = f.get("risk", "LOW")
+        n = counts[cat]
+        deduction = {"HIGH": 35.0, "MEDIUM": 20.0, "LOW": 8.0}.get(risk, 5.0) * (0.7 ** n)
+        cat_scores[cat] = max(0.0, cat_scores[cat] - deduction)
+        counts[cat] += 1
 
-    repeated_penalty = sum(max(0, count - 1) * 2 for count in category_counts.values())
-    diversity_penalty = min(10, len(category_counts) * 2)
-    adjusted = score - repeated_penalty - diversity_penalty
-    return max(0, adjusted)
+    return {k: int(round(v)) for k, v in cat_scores.items()}
 
 
 def get_score_label(score):
-    if score >= 80:
-        return "FAIR — Generally safe to sign", "🟢"
-    elif score >= 60:
-        return "CAUTION — Review specific clauses carefully", "🟡"
-    elif score >= 40:
-        return "RISKY — Seek advice before signing", "🟠"
+    if score >= 75:
+        return "MINOR — Generally safe to sign", "🟢"
+    elif score >= 45:
+        return "MODERATE — Review specific clauses carefully", "🟡"
+    elif score >= 15:
+        return "SERIOUS — Seek advice before signing", "🟠"
     else:
-        return "DANGER — Do NOT sign without legal help", "🔴"
+        return "EXTREME — Do NOT sign without legal help", "🔴"
+
 
 
 @lru_cache(maxsize=256)

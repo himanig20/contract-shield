@@ -158,36 +158,26 @@ def render_gauge(score: int) -> str:
 # ───────────────────────────────────────────────────────────────────────────────
 # CATEGORY FAIRNESS BARS
 # ───────────────────────────────────────────────────────────────────────────────
-def render_category_scores(findings: list):
-    """Build and display per-category fairness progress bars."""
-    # Map rules to categories
-    rule_to_cats = {
-        "Unfair Termination": "termination",
-        "Illegal Wage Deduction": "wages",
-        "Forced Overtime": "wages",
-        "Excessive Penalty": "debt",
-        "Predatory Interest Rate": "debt",
-        "Liability Waiver": "liability",
-        "Privacy Concern": "privacy",
-        "Ambiguous Term": "transparency",
-        "Non-Compete Clause": "termination",
-        "Unlawful Eviction": "termination",
-    }
+def render_category_scores(cat_scores: dict):
+    """Display per-category fairness progress bars from a pre-computed dict."""
 
-    # Start every category at 100, deduct per finding
-    cat_scores = {k: 100 for k in FAIRNESS_CATEGORIES}
-    for f in findings:
-        cat_key = rule_to_cats.get(f["category"], "transparency")
-        deduction = {"HIGH": 35, "MEDIUM": 18, "LOW": 8}.get(f["risk"], 5)
-        cat_scores[cat_key] = max(0, cat_scores[cat_key] - deduction)
+    # Map the keys from calculate_category_scores to the FAIRNESS_CATEGORIES keys
+    KEY_MAP = {
+        "Wage": "wages",
+        "Termination": "termination",
+        "Privacy": "privacy",
+        "Liability": "liability",
+        "Renewal": "renewal",
+    }
 
     st.markdown("""
     <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
               text-transform:uppercase; margin:0 0 0.8rem;">📊 Category Breakdown</p>
     """, unsafe_allow_html=True)
 
-    for key, meta in FAIRNESS_CATEGORIES.items():
-        sc = cat_scores[key]
+    for util_key, fc_key in KEY_MAP.items():
+        sc = cat_scores.get(util_key, 100)
+        meta = FAIRNESS_CATEGORIES.get(fc_key, {"label": util_key, "icon": "📋", "color": "#8aadf4"})
         color = meta["color"]
         if sc < 40:
             color = "#ff4444"
@@ -208,8 +198,6 @@ def render_category_scores(findings: list):
           </div>
         </div>
         """, unsafe_allow_html=True)
-
-    return cat_scores
 
 
 # ───────────────────────────────────────────────────────────────────────────────
