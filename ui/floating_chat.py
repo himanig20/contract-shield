@@ -89,30 +89,30 @@ def inject_floating_chat():
                         right: 30px;
                         width: 60px;
                         height: 60px;
-                        background: linear-gradient(135deg, #00ff88, #00cc6a);
+                        background: #0f4c81;
                         border-radius: 50%;
-                        box-shadow: 0 4px 16px rgba(0,255,136,0.3);
+                        box-shadow: 0 4px 16px rgba(15, 76, 129, 0.3);
                         cursor: pointer;
                         z-index: 10000;
                         display: flex;
                         justify-content: center;
                         align-items: center;
-                        font-size: 28px;
                         transition: transform 0.2s;
                         border: 3px solid rgba(255,255,255,0.1);
                     }}
                     #cs-bot-fab:hover {{ transform: scale(1.08); }}
+                    #cs-bot-fab svg {{ fill: #ffffff; width: 28px; height: 28px; }}
                     
                     #cs-bot-panel {{
                         position: fixed;
                         bottom: 100px;
                         right: 30px;
-                        width: 360px;
+                        width: 380px;
                         height: 550px;
-                        background: #0d1529;
-                        border: 1px solid #1f2d4f;
-                        border-radius: 16px;
-                        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 12px;
+                        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
                         z-index: 10000;
                         display: none;
                         flex-direction: column;
@@ -120,13 +120,13 @@ def inject_floating_chat():
                         font-family: 'Inter', sans-serif;
                     }}
                     #cs-bot-header {{
-                        background: #111c35;
+                        background: #0f4c81;
                         padding: 16px;
-                        border-bottom: 1px solid #1f2d4f;
+                        border-bottom: 1px solid #0c3e6a;
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
-                        color: #e8eaf6;
+                        color: #ffffff;
                     }}
                     #cs-bot-body {{
                         flex: 1;
@@ -135,11 +135,12 @@ def inject_floating_chat():
                         display: flex;
                         flex-direction: column;
                         gap: 12px;
+                        background: #f8fafc;
                     }}
                     #cs-bot-input-area {{
                         padding: 16px;
-                        background: #111c35;
-                        border-top: 1px solid #1f2d4f;
+                        background: #ffffff;
+                        border-top: 1px solid #e2e8f0;
                         display: flex;
                         gap: 8px;
                     }}
@@ -147,24 +148,24 @@ def inject_floating_chat():
                         flex: 1;
                         padding: 10px;
                         border-radius: 8px;
-                        border: 1px solid #1f2d4f;
-                        background: #0a0f1e;
-                        color: white;
+                        border: 1px solid #e2e8f0;
+                        background: #f1f5f9;
+                        color: #0f172a;
                         font-family: 'Inter', sans-serif;
                         outline: none;
                     }}
-                    #cs-bot-input:focus {{ border-color: #00ff88; }}
+                    #cs-bot-input:focus {{ border-color: #0f4c81; background: #ffffff; }}
                     #cs-bot-send {{
-                        background: #00ff88;
-                        color: #0a0f1e;
+                        background: #0f4c81;
+                        color: #ffffff;
                         border: none;
                         border-radius: 8px;
                         padding: 0 16px;
-                        font-weight: 700;
+                        font-weight: 600;
                         cursor: pointer;
                     }}
                     .cs-msg {{
-                        padding: 10px 14px;
+                        padding: 12px 16px;
                         border-radius: 12px;
                         max-width: 85%;
                         font-size: 14px;
@@ -172,34 +173,37 @@ def inject_floating_chat():
                         word-wrap: break-word;
                     }}
                     .cs-msg-user {{
-                        background: #1f2d4f;
-                        color: #e8eaf6;
+                        background: #0f4c81;
+                        color: #ffffff;
                         align-self: flex-end;
                         border-bottom-right-radius: 4px;
                     }}
                     .cs-msg-bot {{
-                        background: rgba(0,255,136,0.1);
-                        color: #00ff88;
+                        background: #ffffff;
+                        color: #0f172a;
                         align-self: flex-start;
-                        border: 1px solid rgba(0,255,136,0.2);
+                        border: 1px solid #e2e8f0;
                         border-bottom-left-radius: 4px;
+                        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
                     }}
-                    .cs-typing {{ align-self: flex-start; color: #7888aa; font-size: 12px; display:none; }}
+                    .cs-typing {{ align-self: flex-start; color: #64748b; font-size: 12px; display:none; padding: 0 4px; }}
                 </style>
-                <div id="cs-bot-fab">💬</div>
+                <div id="cs-bot-fab">
+                    <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                </div>
                 <div id="cs-bot-panel">
                     <div id="cs-bot-header">
                         <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:20px;">🤖</span>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2z"></path><path d="M22 6L12 16 2 6"></path></svg>
                             <div style="font-weight:700; font-size:15px; display:flex; flex-direction:column;">
                                 <span>Contract Shield AI</span>
-                                <span style="font-size:11px; color:#00ff88; font-weight:500;">✓ Ready to help</span>
+                                <span style="font-size:11px; color:#14b8a6; font-weight:500;">Ready to help</span>
                             </div>
                         </div>
-                        <div id="cs-bot-close" style="cursor:pointer; font-size:18px; color:#7888aa; padding:4px;">✖</div>
+                        <div id="cs-bot-close" style="cursor:pointer; font-size:18px; color:#94a3b8; padding:4px;">✖</div>
                     </div>
                     <div id="cs-bot-body">
-                        <div class="cs-msg cs-msg-bot">Hi! 👋 I'm Contract Shield AI. Ask me anything — legal questions, contract advice, or just say hello! 😊</div>
+                        <div class="cs-msg cs-msg-bot">Hi! I'm Contract Shield AI. Ask me anything — legal questions, contract advice, or just say hello!</div>
                     </div>
                     <div id="cs-typing" class="cs-typing">AI is thinking...</div>
                     <div id="cs-bot-input-area">

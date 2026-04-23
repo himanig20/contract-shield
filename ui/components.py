@@ -1,6 +1,25 @@
 """Reusable HTML/Streamlit UI component functions."""
 import streamlit as st
-from config import THEME, FAIRNESS_CATEGORIES
+from config import FAIRNESS_CATEGORIES
+import os
+import base64
+
+def get_logo_html():
+    """Helper to load user logo from assets or provide text fallback"""
+    import base64
+    logo_path_png = "assets/logo.png"
+    logo_path_svg = "assets/logo.svg"
+    
+    if os.path.exists(logo_path_png):
+        with open(logo_path_png, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        return f'<img src="data:image/png;base64,{encoded_string}" style="max-height: 48px;">'
+    elif os.path.exists(logo_path_svg):
+        with open(logo_path_svg, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        return f'<img src="data:image/svg+xml;base64,{encoded_string}" style="max-height: 48px;">'
+    else:
+        return '<span style="font-weight: 800; font-size: 1.5rem; color: var(--brand-primary);">Contract Shield</span>'
 
 
 def hex_to_rgb(h: str) -> str:
@@ -13,53 +32,22 @@ def hex_to_rgb(h: str) -> str:
 # HERO BANNER
 # ───────────────────────────────────────────────────────────────────────────────
 def render_hero():
-    st.markdown("""
-    <div style="
-        background: linear-gradient(135deg, #0d1529 0%, #0f1e3a 50%, #0a1628 100%);
-        border: 1px solid rgba(0,255,136,0.12);
-        border-radius: 20px;
-        padding: 3rem 2.5rem 2.8rem;
-        text-align: center;
-        margin-bottom: 2rem;
-        position: relative;
-        overflow: hidden;
-    ">
-      <!-- glow orbs -->
-      <div style="position:absolute;top:-60px;left:-60px;width:220px;height:220px;
-                  background:radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%);
-                  pointer-events:none;"></div>
-      <div style="position:absolute;bottom:-60px;right:-60px;width:220px;height:220px;
-                  background:radial-gradient(circle, rgba(0,100,255,0.07) 0%, transparent 70%);
-                  pointer-events:none;"></div>
-      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-                  width:400px;height:400px;
-                  background:radial-gradient(circle, rgba(0,255,136,0.03) 0%, transparent 60%);
-                  pointer-events:none;"></div>
-
-      <div style="font-size:4.2rem; line-height:1; margin-bottom:0.7rem;
-                  filter:drop-shadow(0 0 24px rgba(0,255,136,0.4));">🛡</div>
-      <h1 style="font-family:'Inter',sans-serif; font-size:2.8rem; font-weight:900;
-                 background: linear-gradient(135deg, #ffffff 0%, #00ff88 60%, #00cc6a 100%);
-                 -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-                 margin:0 0 0.5rem; letter-spacing:-0.04em; line-height:1.1;">
-        Contract Shield
+    logo_html = get_logo_html()
+    st.markdown(f"""
+    <div style="padding: 2rem 0 3rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border);">
+      <div style="margin-bottom: 1.5rem;">
+          {logo_html}
+      </div>
+      <h1 class="text-heading" style="font-size: 2.5rem; margin: 0 0 1rem;">
+        Enterprise-Grade Contract Analysis
       </h1>
-      <p style="font-size:1.05rem; color:#7888aa; margin:0 0 0.4rem; font-weight:400;">
-        Protecting <span style="color:#00ff88; font-weight:700;">450 million</span> informal workers in India
+      <p class="text-subtitle" style="font-size: 1.1rem; max-width: 600px; margin: 0 0 1.5rem;">
+        Instantly analyze legal risks, unfair termination clauses, and predatory interest rates using advanced NLP and Machine Learning. Built to protect and empower informal workers.
       </p>
-      <div style="display:flex; gap:0.6rem; justify-content:center; margin-top:0.8rem; flex-wrap:wrap;">
-        <span style="background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.2);
-                     border-radius:20px; padding:0.3rem 0.8rem; font-size:0.72rem;
-                     color:#00ff88; font-weight:600;">🤖 AI-Powered</span>
-        <span style="background:rgba(138,173,244,0.08); border:1px solid rgba(138,173,244,0.2);
-                     border-radius:20px; padding:0.3rem 0.8rem; font-size:0.72rem;
-                     color:#8aadf4; font-weight:600;">🌐 8 Languages</span>
-        <span style="background:rgba(255,209,102,0.08); border:1px solid rgba(255,209,102,0.2);
-                     border-radius:20px; padding:0.3rem 0.8rem; font-size:0.72rem;
-                     color:#ffd166; font-weight:600;">⚖️ Indian Law</span>
-        <span style="background:rgba(162,155,254,0.08); border:1px solid rgba(162,155,254,0.2);
-                     border-radius:20px; padding:0.3rem 0.8rem; font-size:0.72rem;
-                     color:#a29bfe; font-weight:600;">🆓 Free & Open</span>
+      <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+        <span style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 600;">NLP Contextual Matching</span>
+        <span style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 600;">OCR Supported</span>
+        <span style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 600;">Multilingual Outputs</span>
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -69,22 +57,23 @@ def render_hero():
 # URGENCY BANNER
 # ───────────────────────────────────────────────────────────────────────────────
 def render_urgency_banner(findings: list):
-    """Show a pulsing danger banner if HIGH risk clauses are found."""
+    """Show a clean danger banner if HIGH risk clauses are found."""
     high = [f for f in findings if f["risk"] == "HIGH"]
     if not high:
         return
     first_high_clause = high[0].get("clause_id", "?")
     st.markdown(f"""
-    <div class="urgency-banner">
-      <div style="display:flex; align-items:center; gap:0.8rem;">
-        <span style="font-size:1.8rem;">🚨</span>
+    <div style="background: #fef2f2; border-left: 4px solid var(--status-high); border-radius: var(--radius); padding: 1.2rem 1.5rem; margin: 1.5rem 0;">
+      <div style="display: flex; align-items: flex-start; gap: 1rem;">
+        <div style="color: var(--status-high); font-size: 1.5rem; line-height: 1;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </div>
         <div>
-          <div style="font-size:0.95rem; font-weight:800; color:#ff4444; margin-bottom:0.2rem;">
-            ⛔ DO NOT SIGN — Review Clause #{first_high_clause} First
+          <div style="font-size: 1.05rem; font-weight: 700; color: #991b1b; margin-bottom: 0.3rem;">
+            Critical Review Required — Clause #{first_high_clause}
           </div>
-          <div style="font-size:0.82rem; color:#c8cfe8; line-height:1.5;">
-            This contract contains <b style="color:#ff4444;">{len(high)} high-risk</b> clause{'s' if len(high) > 1 else ''}
-            that could seriously harm your rights. Scroll down for details and safer alternatives.
+          <div style="font-size: 0.9rem; color: #7f1d1d; line-height: 1.5;">
+            {len(high)} high-risk clauses were flagged that severely impact your rights. Review detailed explanations below before proceeding.
           </div>
         </div>
       </div>
@@ -95,18 +84,13 @@ def render_urgency_banner(findings: list):
 # ───────────────────────────────────────────────────────────────────────────────
 # STAT CARD
 # ───────────────────────────────────────────────────────────────────────────────
-def render_stat_card(col, value, label, icon, color):
+def render_stat_card(col, value, label, icon_svg_path, color):
     rgb = hex_to_rgb(color)
+    # Replaced emojis with a clean layout relying on typography and slight background tints
     col.markdown(f"""
-    <div style="background:rgba({rgb},0.06); border:1px solid rgba({rgb},0.2);
-                border-radius:12px; padding:0.9rem 0.8rem; text-align:center;
-                transition: transform 0.2s, box-shadow 0.2s;"
-         onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba({rgb},0.15)'"
-         onmouseout="this.style.transform='';this.style.boxShadow=''">
-      <div style="font-size:1.2rem; margin-bottom:0.2rem;">{icon}</div>
-      <div style="font-size:1.8rem; font-weight:900; color:{color}; line-height:1;">{value}</div>
-      <div style="font-size:0.68rem; color:rgba({rgb},0.8); letter-spacing:0.05em;
-                  text-transform:uppercase; margin-top:0.3rem;">{label}</div>
+    <div class="shadow-card" style="text-align: left; padding: 1.2rem;">
+      <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">{label}</div>
+      <div style="font-size: 2rem; font-weight: 800; color: {color}; line-height: 1;">{value}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -116,40 +100,38 @@ def render_stat_card(col, value, label, icon, color):
 # ───────────────────────────────────────────────────────────────────────────────
 def render_gauge(score: int) -> str:
     if score >= 80:
-        color, glow, label, emoji = "#00ff88", "rgba(0,255,136,0.35)", "FAIR", "✅"
+        color, label = "var(--status-low)", "FAIR"
     elif score >= 60:
-        color, glow, label, emoji = "#ffd166", "rgba(255,209,102,0.35)", "CAUTION", "⚠️"
+        color, label = "var(--status-med)", "CAUTION"
     elif score >= 40:
-        color, glow, label, emoji = "#ff9f43", "rgba(255,159,67,0.35)", "RISKY", "🟠"
+        color, label = "var(--status-med)", "RISKY"
     else:
-        color, glow, label, emoji = "#ff4444", "rgba(255,68,68,0.35)", "DANGER", "🔴"
+        color, label = "var(--status-high)", "DANGER"
 
     radius = 54
     circumference = 2 * 3.14159 * radius
     filled = circumference * score / 100
     gap = circumference - filled
 
+    # Clean, modern gauge without aggressive glowing
     return f"""
-    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1rem;">
-      <svg width="160" height="160" viewBox="0 0 160 160" style="filter:drop-shadow(0 0 16px {glow});">
+    <div class="shadow-card" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 2rem 1rem;">
+      <svg width="140" height="140" viewBox="0 0 160 160">
         <circle cx="80" cy="80" r="{radius}" fill="none"
-                stroke="rgba(255,255,255,0.06)" stroke-width="12"/>
+                stroke="var(--border)" stroke-width="8"/>
         <circle cx="80" cy="80" r="{radius}" fill="none"
-                stroke="{color}" stroke-width="12"
+                stroke="{color}" stroke-width="8"
                 stroke-linecap="round"
                 stroke-dasharray="{filled:.1f} {gap:.1f}"
                 transform="rotate(-90 80 80)"
                 style="transition: stroke-dasharray 0.8s ease;"/>
-        <text x="80" y="75" text-anchor="middle"
-              font-family="Inter,sans-serif" font-size="28" font-weight="900"
-              fill="{color}">{score}</text>
-        <text x="80" y="96" text-anchor="middle"
-              font-family="Inter,sans-serif" font-size="11" font-weight="500"
-              fill="rgba(255,255,255,0.45)" letter-spacing="2">OUT OF 100</text>
+        <text x="80" y="90" text-anchor="middle"
+              font-family="Inter,sans-serif" font-size="32" font-weight="800"
+              fill="var(--text-primary)">{score}</text>
       </svg>
-      <div style="margin-top:0.6rem; font-size:1rem; font-weight:700; color:{color};
-                  letter-spacing:0.06em;">
-        {emoji} &nbsp;{label}
+      <div style="margin-top: 1rem; font-size: 0.85rem; font-weight: 600; color: {color};
+                  letter-spacing: 0.05em; text-transform: uppercase;">
+        Assessment: {label}
       </div>
     </div>
     """
@@ -159,9 +141,6 @@ def render_gauge(score: int) -> str:
 # CATEGORY FAIRNESS BARS
 # ───────────────────────────────────────────────────────────────────────────────
 def render_category_scores(cat_scores: dict):
-    """Display per-category fairness progress bars from a pre-computed dict."""
-
-    # Map the keys from calculate_category_scores to the FAIRNESS_CATEGORIES keys
     KEY_MAP = {
         "Wage": "wages",
         "Termination": "termination",
@@ -171,50 +150,48 @@ def render_category_scores(cat_scores: dict):
     }
 
     st.markdown("""
-    <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
-              text-transform:uppercase; margin:0 0 0.8rem;">📊 Category Breakdown</p>
+    <div class="shadow-card">
+    <div style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; 
+                text-transform: uppercase; margin: 0 0 1rem; letter-spacing: 0.05em;">
+        Category Breakdown
+    </div>
     """, unsafe_allow_html=True)
 
     for util_key, fc_key in KEY_MAP.items():
         sc = cat_scores.get(util_key, 100)
-        meta = FAIRNESS_CATEGORIES.get(fc_key, {"label": util_key, "icon": "📋", "color": "#8aadf4"})
-        color = meta["color"]
+        color = "var(--brand-primary)"
         if sc < 40:
-            color = "#ff4444"
+            color = "var(--status-high)"
         elif sc < 65:
-            color = "#ffd166"
-        rgb = hex_to_rgb(color)
+            color = "var(--status-med)"
 
         st.markdown(f"""
-        <div style="margin-bottom:0.65rem;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem;">
-            <span style="font-size:0.78rem; color:#c8cfe8; font-weight:500;">
-              {meta['icon']} {meta['label']}
+        <div style="margin-bottom: 1rem;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+            <span style="font-size: 0.85rem; color: var(--text-primary); font-weight: 500;">
+              {util_key}
             </span>
-            <span style="font-size:0.75rem; font-weight:700; color:{color};">{sc}/100</span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: {color};">{sc}/100</span>
           </div>
           <div class="cat-progress-track">
-            <div class="cat-progress-fill" style="width:{sc}%; background:linear-gradient(90deg, {color}, rgba({rgb},0.6));"></div>
+            <div class="cat-progress-fill" style="width: {sc}%; background: {color};"></div>
           </div>
         </div>
         """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ───────────────────────────────────────────────────────────────────────────────
-# RISK CLAUSE CARD  (Component 4 — 5-section format)
+# RISK CLAUSE CARD
 # ───────────────────────────────────────────────────────────────────────────────
 RISK_COLORS = {
-    "HIGH":   {"border": "#ff4444", "bg": "rgba(255,68,68,0.07)",   "text": "#ff4444"},
-    "MEDIUM": {"border": "#ff9f43", "bg": "rgba(255,159,67,0.07)",  "text": "#ff9f43"},
-    "LOW":    {"border": "#ffd166", "bg": "rgba(255,209,102,0.07)", "text": "#ffd166"},
+    "HIGH":   {"border": "var(--status-high)", "bg": "#fef2f2", "text": "var(--status-high)"},
+    "MEDIUM": {"border": "var(--status-med)",  "bg": "#fffbeb", "text": "var(--status-med)"},
+    "LOW":    {"border": "var(--status-low)",  "bg": "#f0fdf4", "text": "var(--status-low)"},
 }
 
-
 def render_clause_card(i: int, finding: dict, ai_explanation: dict | None = None):
-    """
-    Render a single flagged clause with the 5-section format:
-    1. Original Clause  2. What It Means  3. Why Risky  4. Risk Level  5. Safer Alternative
-    """
     risk = finding["risk"]
     rc = RISK_COLORS.get(risk, RISK_COLORS["LOW"])
     confidence = int(finding.get("confidence", 0) * 100)
@@ -224,82 +201,70 @@ def render_clause_card(i: int, finding: dict, ai_explanation: dict | None = None
     match_source = finding.get("match_source", "N/A")
     indian_law = finding.get("indian_law", "")
 
-    # Fallback explanations from rules
     what_it_means = finding["explanation"]
     why_risky = f"This clause has been flagged as a {category} risk."
     safer_alt = finding.get("suggestion", "")
 
-    # Override with AI explanations if available
     if ai_explanation:
         what_it_means = ai_explanation.get("what_it_means", what_it_means)
         why_risky = ai_explanation.get("why_risky", why_risky)
         safer_alt = ai_explanation.get("safer_alternative", safer_alt)
 
-    # Card header (outside expander)
+    # Clean Card Header
     st.markdown(f"""
-    <div style="border-left:4px solid {rc['border']};
-                background:linear-gradient(90deg, {rc['bg']} 0%, transparent 60%);
-                border-radius:0 10px 10px 0; padding:0.6rem 1rem; margin-bottom:0.25rem;
-                display:flex; align-items:center; gap:0.7rem; flex-wrap:wrap;">
-      <span class="risk-badge" style="background:{rc['bg']}; color:{rc['text']};
-            border-color:{rc['border']};">{risk}</span>
-      <span style="font-weight:700; font-size:0.9rem; color:#e8eaf6;">{category}</span>
-      <span style="margin-left:auto; font-size:0.7rem; color:#7888aa;">
-        Clause #{clause_id} · {match_source} · {confidence}%
+    <div style="border-left: 3px solid {rc['border']};
+                background: {rc['bg']};
+                border-radius: 0 var(--radius) var(--radius) 0; padding: 0.8rem 1.2rem;
+                display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+      <span class="risk-badge" style="background: #ffffff; color: {rc['text']};
+            border: 1px solid {rc['border']};">{risk}</span>
+      <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">{category}</span>
+      <span style="margin-left: auto; font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">
+        Match Context: {match_source} · Conf {confidence}%
       </span>
     </div>
     """, unsafe_allow_html=True)
 
-    icon = {"HIGH": "🔴", "MEDIUM": "🟠", "LOW": "🟡"}.get(risk, "⚪")
-    with st.expander(f"{icon} [{risk}]  {category}  —  clause #{clause_id}", expanded=(risk == "HIGH")):
+    with st.expander(f"Review finding details for clause #{clause_id}", expanded=(risk == "HIGH")):
 
-        # 1. ORIGINAL CLAUSE
         if clause_text:
-            st.markdown("<p style='color:#7888aa; font-size:0.72rem; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:0.3rem;'>📄 Original Clause</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: var(--text-muted); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.4rem;'>Original Clause</p>", unsafe_allow_html=True)
             st.code(clause_text, language=None)
 
-        # 2. WHAT IT MEANS (plain language)
+        # Content blocks
         st.markdown(f"""
-        <div style="background:rgba(138,173,244,0.06); border-left:3px solid #8aadf4;
-                    border-radius:0 8px 8px 0; padding:0.75rem 1rem; margin:0.6rem 0;">
-          <span style="font-size:0.72rem; color:#8aadf4; font-weight:700;
-                       letter-spacing:0.06em; text-transform:uppercase;">💬 What It Means</span><br>
-          <span style="font-size:0.88rem; color:#e8eaf6; line-height:1.65;">{what_it_means}</span>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; margin-top: 1rem;">
+            <div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 0.4rem;">What It Means</div>
+              <div style="font-size: 0.88rem; color: var(--text-primary); line-height: 1.6;">{what_it_means}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: {rc['text']}; font-weight: 600; text-transform: uppercase; margin-bottom: 0.4rem;">Why It's Risky</div>
+              <div style="font-size: 0.88rem; color: var(--text-primary); line-height: 1.6;">{why_risky}</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-        # 3. WHY IT'S RISKY
-        st.markdown(f"""
-        <div style="background:rgba({hex_to_rgb(rc['border'])},0.06); border-left:3px solid {rc['border']};
-                    border-radius:0 8px 8px 0; padding:0.75rem 1rem; margin:0.5rem 0;">
-          <span style="font-size:0.72rem; color:{rc['text']}; font-weight:700;
-                       letter-spacing:0.06em; text-transform:uppercase;">⚠️ Why It's Risky</span><br>
-          <span style="font-size:0.88rem; color:#c8cfe8; line-height:1.65;">{why_risky}</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # 4. SAFER ALTERNATIVE (rewrite)
+        if safer_alt or indian_law:
+            st.markdown("<hr style='border-color: var(--border); margin: 1.5rem 0 1rem;'>", unsafe_allow_html=True)
+        
         if safer_alt:
             st.markdown(f"""
-            <div style="background:rgba(0,255,136,0.05); border-left:3px solid #00ff88;
-                        border-radius:0 8px 8px 0; padding:0.75rem 1rem; margin:0.5rem 0;">
-              <span style="font-size:0.72rem; color:#00ff88; font-weight:700;
-                           letter-spacing:0.06em; text-transform:uppercase;">✅ Safer Alternative</span><br>
-              <span style="font-size:0.88rem; color:#c8cfe8; line-height:1.65; font-style:italic;">
+            <div style="margin-bottom: 1rem;">
+              <div style="font-size: 0.75rem; color: var(--brand-secondary); font-weight: 600; text-transform: uppercase; margin-bottom: 0.4rem;">Safer Alternative</div>
+              <div style="font-size: 0.88rem; color: var(--text-primary); font-style: italic; background: var(--bg-secondary); padding: 0.8rem; border-radius: var(--radius-sm); border: 1px solid var(--border);">
                 "{safer_alt}"
-              </span>
+              </div>
             </div>
             """, unsafe_allow_html=True)
 
-        # 5. INDIAN LAW REFERENCE
         if indian_law:
             st.markdown(f"""
-            <div style="display:inline-flex; align-items:center; gap:0.4rem;
-                        background:rgba(100,149,237,0.08); border:1px solid rgba(100,149,237,0.25);
-                        border-radius:8px; padding:0.45rem 0.8rem; margin:0.5rem 0 0.2rem;">
-              <span style="font-size:0.85rem;">⚖️</span>
-              <span style="font-size:0.76rem; color:#8aadf4; font-weight:600;
-                           line-height:1.5;">{indian_law}</span>
+            <div style="display: inline-flex; align-items: center; gap: 0.5rem;
+                        background: var(--bg-tertiary); border: 1px solid var(--border);
+                        border-radius: var(--radius-sm); padding: 0.5rem 0.8rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <span style="font-size: 0.8rem; color: var(--text-primary); font-weight: 500;">{indian_law}</span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -308,7 +273,6 @@ def render_clause_card(i: int, finding: dict, ai_explanation: dict | None = None
 # ACTION CHECKLIST
 # ───────────────────────────────────────────────────────────────────────────────
 def render_action_checklist(findings: list):
-    """Dynamic 'What Should I Do?' checklist based on findings."""
     high_findings = [f for f in findings if f["risk"] == "HIGH"]
     med_findings = [f for f in findings if f["risk"] == "MEDIUM"]
     high_cats = list(dict.fromkeys(f["category"] for f in high_findings))
@@ -319,51 +283,50 @@ def render_action_checklist(findings: list):
     step = 1
 
     if high_findings:
-        actions.append((step, "🛑 <b style='color:#ff4444;'>Do not sign this contract yet.</b> It contains high-risk clauses that could seriously harm your rights.", "#ff4444"))
+        actions.append((step, "<b>Do not sign this contract yet.</b> It contains high-risk clauses that could seriously harm your rights.", "var(--status-high)"))
         step += 1
         for cat in high_cats[:3]:
-            actions.append((step, f"Ask the employer to <b>remove or rewrite</b> the <i>{cat}</i> clause.", "#ff9f43"))
+            actions.append((step, f"Ask the employer to <b>remove or rewrite</b> the <i>{cat}</i> clause.", "var(--status-med)"))
             step += 1
 
     if med_findings:
         cats = ", ".join(f"<i>{c}</i>" for c in med_cats[:3])
-        actions.append((step, f"Negotiate clearer language for: {cats}.", "#ffd166"))
+        actions.append((step, f"Negotiate clearer language for: {cats}.", "var(--status-med)"))
         step += 1
 
     if unique_laws:
         law_list = ", ".join(f"<i>{l.split(' — ')[0]}</i>" for l in unique_laws[:4])
-        actions.append((step, f"Learn about your rights under: {law_list}.", "#8aadf4"))
+        actions.append((step, f"Learn about your rights under: {law_list}.", "var(--brand-primary)"))
         step += 1
 
     if high_findings:
-        actions.append((step, "Contact a <b style='color:#00ff88;'>free legal aid helpline</b> — Shram Suvidha: <b>1800-11-4000</b>.", "#00ff88"))
+        actions.append((step, "Contact a free legal aid helpline — Shram Suvidha: <b>1800-11-4000</b>.", "var(--brand-secondary)"))
         step += 1
 
-    actions.append((step, "Keep a <b>written copy</b> of every negotiated change signed by both parties.", "#7888aa"))
+    actions.append((step, "Keep a <b>written copy</b> of every negotiated change signed by both parties.", "var(--text-muted)"))
 
     st.markdown("""
-    <h3 style="font-family:'Inter',sans-serif; font-size:1.2rem; font-weight:800;
-               color:#e8eaf6; margin:0 0 1rem;">🎯 What Should I Do?</h3>
+    <div class="shadow-card" style="margin-top: 2rem;">
+        <h3 class="text-heading" style="font-size: 1.25rem; margin: 0 0 1.5rem;">Recommended Actions</h3>
     """, unsafe_allow_html=True)
 
     for num, text, color in actions:
-        rgb = hex_to_rgb(color)
         st.markdown(f"""
-        <div style="display:flex; gap:0.8rem; align-items:flex-start; margin-bottom:0.65rem;">
-          <div style="flex-shrink:0; width:30px; height:30px; border-radius:50%;
-                      background:rgba({rgb},0.12); border:1px solid rgba({rgb},0.3);
-                      display:flex; align-items:center; justify-content:center;
-                      font-size:0.8rem; font-weight:800; color:{color};">{num}</div>
-          <p style="color:#c8cfe8; font-size:0.86rem; margin:0; line-height:1.6; padding-top:0.15rem;">{text}</p>
+        <div style="display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1rem;">
+          <div style="flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+                      background: var(--bg-tertiary); border: 1px solid var(--border);
+                      display: flex; align-items: center; justify-content: center;
+                      font-size: 0.85rem; font-weight: 700; color: {color};">{num}</div>
+          <p style="color: var(--text-primary); font-size: 0.9rem; margin: 0; line-height: 1.6; padding-top: 0.15rem;">{text}</p>
         </div>
         """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ───────────────────────────────────────────────────────────────────────────────
-# TTS — Read Aloud Button (Voice Accessibility)
+# TTS
 # ───────────────────────────────────────────────────────────────────────────────
-def render_tts_button(text: str, label: str = "🔊 Read Aloud", lang: str = "en-IN"):
-    """Render a text-to-speech button using the Web Speech API."""
+def render_tts_button(text: str, label: str = "Read Aloud", lang: str = "en-IN"):
     import streamlit.components.v1 as components
     safe = text.replace("'", "\\'").replace("\n", " ").replace('"', '\\"')[:500]
     components.html(f"""
@@ -372,10 +335,11 @@ def render_tts_button(text: str, label: str = "🔊 Read Aloud", lang: str = "en
         u.lang = '{lang}'; u.rate = 0.9;
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(u);
-    " style="background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.2);
-             border-radius:8px; padding:0.35rem 0.7rem; cursor:pointer; color:#00ff88;
-             font-size:0.75rem; font-weight:600; font-family:Inter,sans-serif;
-             transition:all 0.18s;">
+    " style="background: var(--bg-main); border: 1px solid var(--border);
+             border-radius: var(--radius-sm); padding: 0.4rem 0.8rem; cursor: pointer; color: var(--brand-primary);
+             font-size: 0.75rem; font-weight: 600; font-family: Inter,sans-serif;
+             transition: all 0.2s ease;">
+        <svg style="vertical-align: middle; margin-right: 4px;" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
         {label}
     </button>
     """, height=40)
@@ -385,21 +349,20 @@ def render_tts_button(text: str, label: str = "🔊 Read Aloud", lang: str = "en
 # FOOTER
 # ───────────────────────────────────────────────────────────────────────────────
 def render_footer():
-    st.markdown("""
+    logo_html = get_logo_html()
+    st.markdown(f"""
     <div style="
         margin-top: 4rem;
-        border-top: 1px solid rgba(255,255,255,0.07);
-        padding: 2rem 0 1.5rem;
+        border-top: 1px solid var(--border);
+        padding: 3rem 0;
         text-align: center;
+        background: var(--bg-secondary);
     ">
-      <div style="font-size:1.8rem; margin-bottom:0.5rem;">🛡</div>
-      <p style="color:#7888aa; font-size:0.78rem; line-height:1.8; margin:0;">
-        <b style="color:rgba(255,255,255,0.35);">Contract Shield v4.0</b> &nbsp;·&nbsp;
-        Built for social impact 🇮🇳 &nbsp;·&nbsp;
-        <span style="color:rgba(255,68,68,0.7);">Not legal advice</span>
-      </p>
-      <p style="color:rgba(255,255,255,0.18); font-size:0.72rem; margin:0.4rem 0 0;">
-        ⚠️ This tool provides automated analysis only. Always consult a qualified lawyer.
+      <div style="margin-bottom: 1rem;">{logo_html}</div>
+      <p style="color: var(--text-muted); font-size: 0.8rem; line-height: 1.8; margin: 0;">
+        <b>Contract Shield v5.0</b> &nbsp;|&nbsp;
+        Enterprise Contract Analysis &nbsp;|&nbsp;
+        <span style="color: var(--status-high);">Not legal advice</span>
       </p>
     </div>
     """, unsafe_allow_html=True)

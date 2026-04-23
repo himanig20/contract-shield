@@ -29,8 +29,8 @@ from ui.chatbot import clear_chat
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Contract Shield · AI Legal Analyzer",
-    page_icon="🛡",
+    page_title="Contract Shield · Enterprise Legal AI",
+    page_icon="assets/logo.png",
     layout="wide",
 )
 
@@ -41,18 +41,17 @@ st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    # Logo
-    st.markdown("""
-    <div style="text-align:center; padding:1.2rem 0 0.8rem;">
-        <div style="font-size:2.6rem; line-height:1; filter:drop-shadow(0 0 16px rgba(0,255,136,0.4));">🛡</div>
-        <div style="font-size:1.1rem; font-weight:800; color:#e8eaf6; letter-spacing:-0.02em; margin-top:0.3rem;">Contract Shield</div>
-        <div style="font-size:0.65rem; color:#7888aa; margin-top:0.15rem; letter-spacing:0.06em;">AI LEGAL ANALYZER · v4.0</div>
+    from ui.components import get_logo_html
+    st.markdown(f"""
+    <div style="text-align:center; padding:1rem 0 0.5rem;">
+        {get_logo_html()}
+        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:0.3rem; letter-spacing:0.06em;">AI LEGAL ANALYZER · v5.0</div>
     </div>
-    <hr style="border-color:rgba(255,255,255,0.07); margin:0.5rem 0 1.2rem;">
+    <hr style="border-color:var(--border); margin:0.5rem 0 1.2rem;">
     """, unsafe_allow_html=True)
 
     # Document Type
-    st.markdown("<p style='color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.3rem;'>⚙️ Document Type</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color:var(--text-muted); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.3rem;'>Document Type</p>", unsafe_allow_html=True)
     doc_type = st.selectbox(
         "Document Type",
         list(CONTRACT_TYPES.keys()),
@@ -60,7 +59,7 @@ with st.sidebar:
     )
 
     # Language
-    st.markdown("<p style='color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin:1rem 0 0.3rem;'>🌐 Output Language</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color:var(--text-muted); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin:1rem 0 0.3rem;'>Output Language</p>", unsafe_allow_html=True)
     lang_options = [f"{v['flag']} {k}" for k, v in LANGUAGES.items()]
     selected_lang_display = st.radio("Language", lang_options, label_visibility="collapsed")
     language = selected_lang_display.split(" ", 1)[1]
@@ -68,8 +67,8 @@ with st.sidebar:
 
     # AI Status
     st.markdown("""
-    <hr style="border-color:rgba(255,255,255,0.07); margin:1.4rem 0 1rem;">
-    <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.4rem;">🤖 AI Assistant</p>
+    <hr style="border-color:var(--border); margin:1.4rem 0 1rem;">
+    <p style="color:var(--text-muted); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.4rem;">AI Assistant Config</p>
     """, unsafe_allow_html=True)
 
     _env_key = GROQ_API_KEY
@@ -91,16 +90,16 @@ with st.sidebar:
                       label_visibility="collapsed", key="groq_api_key_input")
 
     # AI Toggle
-    use_ai = st.checkbox("🧠 Use AI explanations", value=True, key="use_ai_toggle",
+    use_ai = st.checkbox("Enable Contextual Explanations", value=True, key="use_ai_toggle",
                          help="Enable LLM-powered explanations and safer rewrites")
 
     # Sample Contracts
     st.markdown("""
-    <hr style="border-color:rgba(255,255,255,0.07); margin:1.4rem 0 1rem;">
-    <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.4rem;">📄 Load Sample Contract</p>
+    <hr style="border-color:var(--border); margin:1.4rem 0 1rem;">
+    <p style="color:var(--text-muted); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.4rem;">Load Sample Contract</p>
     """, unsafe_allow_html=True)
 
-    if st.button("🏭  Labor Contract", use_container_width=True, key="s_labor"):
+    if st.button("Labor Contract", use_container_width=True, key="s_labor"):
         st.session_state["contract_input"] = (
             "EMPLOYMENT CONTRACT\n\n"
             "1. The employee agrees to work a minimum of 10 hours per day, 6 days a week, "
@@ -119,7 +118,7 @@ with st.sidebar:
         clear_chat()
         st.rerun()
 
-    if st.button("🏠  Rental Agreement", use_container_width=True, key="s_rental"):
+    if st.button("Rental Agreement", use_container_width=True, key="s_rental"):
         st.session_state["contract_input"] = (
             "RENTAL AGREEMENT\n\n"
             "1. The tenant shall pay rent of Rs. 8,000 per month, due on the 1st. A late fee "
@@ -138,7 +137,7 @@ with st.sidebar:
         clear_chat()
         st.rerun()
 
-    if st.button("💰  Loan Document", use_container_width=True, key="s_loan"):
+    if st.button("Loan Document", use_container_width=True, key="s_loan"):
         st.session_state["contract_input"] = (
             "LOAN AGREEMENT\n\n"
             "1. The borrower agrees to repay the principal amount of Rs. 50,000 with "
@@ -164,8 +163,8 @@ with st.sidebar:
     history = st.session_state["analysis_history"]
     if history:
         st.markdown("""
-        <hr style="border-color:rgba(255,255,255,0.07); margin:1.4rem 0 1rem;">
-        <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.4rem;">🕒 Recent Analyses</p>
+        <hr style="border-color:var(--border); margin:1.4rem 0 1rem;">
+        <p style="color:var(--text-muted); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.4rem;">Recent Analyses</p>
         """, unsafe_allow_html=True)
         for h in reversed(history[-3:]):
             _hc = "#ff4444" if h["score"] < 40 else "#ffd166" if h["score"] < 70 else "#00ff88"
@@ -184,15 +183,15 @@ with st.sidebar:
 
     # How to use
     st.markdown("""
-    <hr style="border-color:rgba(255,255,255,0.07); margin:1.4rem 0 1rem;">
-    <div style="background:#111c35; border-radius:10px; padding:0.9rem; border:1px solid rgba(255,255,255,0.07);">
-        <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 0.6rem;">📖 How to use</p>
-        <p style="font-size:0.8rem; color:#c8cfe8; margin:0; line-height:1.7;">
-          1️⃣ Paste text or upload PDF<br>
-          2️⃣ Click <b style="color:#00ff88;">Analyze</b><br>
-          3️⃣ Review flagged clauses<br>
-          4️⃣ Chat with AI for advice<br>
-          5️⃣ Download report
+    <hr style="border-color:var(--border); margin:1.4rem 0 1rem;">
+    <div style="background:var(--bg-secondary); border-radius:10px; padding:0.9rem; border:1px solid var(--border);">
+        <p style="color:var(--text-muted); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 0.6rem;">How to use</p>
+        <p style="font-size:0.8rem; color:var(--text-primary); margin:0; line-height:1.7;">
+          1. Paste text or upload PDF/Image<br>
+          2. Click <b style="color:var(--brand-primary);">Analyze Contract</b><br>
+          3. Review flagged clauses<br>
+          4. Chat with AI for advice<br>
+          5. Download report
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -209,13 +208,12 @@ render_hero()
 ct = CONTRACT_TYPES[doc_type]
 st.markdown(f"""
 <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1.2rem;
-            background:rgba({hex_to_rgb(ct['color'])},0.06);
-            border:1px solid rgba({hex_to_rgb(ct['color'])},0.15);
+            background:var(--bg-secondary);
+            border:1px solid var(--border);
             border-radius:10px; padding:0.6rem 1rem;">
-  <span style="font-size:1.4rem;">{ct['icon']}</span>
   <div>
-    <span style="font-size:0.88rem; font-weight:700; color:{ct['color']};">{doc_type}</span>
-    <span style="font-size:0.78rem; color:#7888aa; margin-left:0.5rem;">{ct['desc']}</span>
+    <span style="font-size:0.88rem; font-weight:700; color:var(--text-primary);">{doc_type}</span>
+    <span style="font-size:0.78rem; color:var(--text-muted); margin-left:0.5rem;">{ct['desc']}</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -225,10 +223,10 @@ import pdfplumber
 import pytesseract
 from PIL import Image
 
-tab_paste, tab_pdf, tab_img = st.tabs(["📋  Paste Text", "📄  Upload PDF", "🖼️  Upload Image (OCR)"])
+tab_paste, tab_pdf, tab_img = st.tabs(["Paste Text", "Upload PDF", "Upload Image (OCR)"])
 
 with tab_paste:
-    st.markdown("<p style='font-size:0.75rem; color:#7888aa; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.3rem;'>📋 Paste your contract text</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.75rem; color:var(--text-muted); letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.3rem;'>Paste your contract text</p>", unsafe_allow_html=True)
     contract_text = st.text_area(
         "Contract text", height=220,
         placeholder="Paste any labor contract, rental agreement, or loan document…",
@@ -236,7 +234,7 @@ with tab_paste:
     )
 
 with tab_pdf:
-    st.markdown("<p style='font-size:0.75rem; color:#7888aa; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.3rem;'>📄 Upload a contract PDF</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.75rem; color:var(--text-muted); letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.3rem;'>Upload a contract PDF</p>", unsafe_allow_html=True)
     uploaded_file = st.file_uploader("Upload PDF", type=["pdf"], label_visibility="collapsed", key="pdf_upload")
 
     if uploaded_file is not None:
@@ -267,7 +265,7 @@ with tab_pdf:
             st.error(f"⚠️ Error reading PDF: {e}")
 
 with tab_img:
-    st.markdown("<p style='font-size:0.75rem; color:#7888aa; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.3rem;'>🖼️ Upload an Image of the Contract</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.75rem; color:var(--text-muted); letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.3rem;'>Upload an Image of the Contract</p>", unsafe_allow_html=True)
     uploaded_image = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"], label_visibility="collapsed", key="img_upload")
 
     if uploaded_image is not None:
@@ -296,9 +294,9 @@ with tab_img:
 # ── Action buttons ────────────────────────────────────────────────────────────
 col1, col2 = st.columns([3, 1])
 with col1:
-    analyze_btn = st.button("🔍  Analyze Contract", type="primary", use_container_width=True)
+    analyze_btn = st.button("Analyze Contract", type="primary", use_container_width=True)
 with col2:
-    clear_btn = st.button("🗑  Clear", use_container_width=True)
+    clear_btn = st.button("Clear Setup", use_container_width=True)
 
 if clear_btn:
     st.session_state["contract_input"] = ""
@@ -350,9 +348,8 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
 
     # ── Results header ──
     st.markdown("""
-    <h2 style="font-family:'Inter',sans-serif; font-size:1.5rem; font-weight:800;
-               color:#e8eaf6; margin:0.5rem 0 1.2rem; letter-spacing:-0.02em;">
-      📊 Analysis Results
+    <h2 class="text-heading" style="font-size:1.5rem; margin:0.5rem 0 1.2rem;">
+      Analysis Results
     </h2>
     """, unsafe_allow_html=True)
 
@@ -379,11 +376,10 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
     with verdict_col:
         full_label, _ = get_score_label(score)
         st.markdown(f"""
-        <div style="background:var(--navy-3); border:1px solid rgba(255,255,255,0.07);
-                    border-radius:12px; padding:1.2rem 1.4rem; margin-bottom:1rem;">
-          <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
+        <div class="shadow-card" style="margin-bottom:1rem;">
+          <p style="color:var(--text-muted); font-size:0.75rem; font-weight: 600; letter-spacing:0.08em;
                     text-transform:uppercase; margin:0 0 0.3rem;">Verdict</p>
-          <p style="font-size:1.05rem; font-weight:700; color:#e8eaf6; margin:0;">{full_label}</p>
+          <p class="text-heading" style="font-size:1.15rem; margin:0;">{full_label}</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -392,12 +388,11 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
             cat_counts = Counter(f["category"] for f in findings)
             top_cat, top_count = cat_counts.most_common(1)[0]
             st.markdown(f"""
-            <div style="background:rgba(138,173,244,0.06); border:1px solid rgba(138,173,244,0.2);
-                        border-radius:12px; padding:1rem 1.2rem;">
-              <p style="color:#7888aa; font-size:0.72rem; letter-spacing:0.08em;
+            <div class="shadow-card">
+              <p style="color:var(--text-muted); font-size:0.75rem; font-weight: 600; letter-spacing:0.08em;
                         text-transform:uppercase; margin:0 0 0.3rem;">Most Common Issue</p>
-              <p style="font-size:0.95rem; font-weight:700; color:#8aadf4; margin:0;">
-                {top_cat} <span style="font-weight:400; color:#7888aa;">({top_count}×)</span>
+              <p style="font-size:1rem; font-weight:700; color:var(--brand-primary); margin:0;">
+                {top_cat} <span style="font-weight:500; color:var(--text-muted);">({top_count}×)</span>
               </p>
             </div>
             """, unsafe_allow_html=True)
@@ -418,8 +413,7 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
 
     if findings:
         st.markdown("""
-        <h2 style="font-family:'Inter',sans-serif; font-size:1.4rem; font-weight:800;
-                   color:#e8eaf6; margin:0 0 1rem;">🚩 Flagged Clauses</h2>
+        <h2 class="text-heading" style="font-size:1.4rem; margin:0 0 1rem;">Flagged Clauses</h2>
         """, unsafe_allow_html=True)
 
         # Generate AI explanations if enabled
@@ -436,7 +430,7 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
         # Translate toggle
         if lang_code:
             translate_all = st.checkbox(
-                f"🌐 Translate all explanations to {language}", value=False,
+                f"Translate all explanations to {language}", value=False,
                 key="translate_all_exp",
             )
 
@@ -467,7 +461,7 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
         dl_col, wa_col = st.columns([3, 2])
         with dl_col:
             st.download_button(
-                label="📥  Download Full Report (.txt)",
+                label="Download Full Report (.txt)",
                 data=report,
                 file_name="contract_shield_report.txt",
                 mime="text/plain",
@@ -475,20 +469,19 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
             )
         with wa_col:
             wa_msg = (
-                f"I analyzed my contract using *Contract Shield* 🛡\n\n"
-                f"📊 Fairness Score: *{score}/100*\n"
-                f"🚨 Found *{high} HIGH-risk* and *{len(findings)} total* flagged clauses.\n\n"
+                f"I analyzed my contract using Contract Shield v5.0\n\n"
+                f"📊 Fairness Score: {score}/100\n"
+                f"Found {high} HIGH-risk and {len(findings)} total flagged clauses.\n\n"
                 f"Get the free tool: https://github.com/himanig20/contract-shield"
             )
             wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_msg)}"
             st.markdown(f"""
             <a href="{wa_url}" target="_blank" style="text-decoration:none;">
-              <div style="background:linear-gradient(135deg,#25D366,#128C7E); border-radius:10px;
-                          padding:0.68rem 1rem; text-align:center; font-weight:700;
-                          color:white; font-size:0.92rem; cursor:pointer;
-                          box-shadow:0 4px 14px rgba(37,211,102,0.3);
-                          transition:transform 0.18s, box-shadow 0.18s;">
-                📱  Share on WhatsApp
+              <div style="background:var(--status-low); border-radius:8px;
+                          padding:0.6rem 1rem; text-align:center; font-weight:600;
+                          color:white; font-size:0.95rem; cursor:pointer;
+                          transition:all 0.2s;">
+                Share on WhatsApp
               </div>
             </a>
             """, unsafe_allow_html=True)
@@ -496,12 +489,11 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
 
     else:
         st.markdown("""
-        <div style="background:rgba(0,255,136,0.06); border:1px solid rgba(0,255,136,0.25);
-                    border-radius:12px; padding:1.8rem; text-align:center; margin-top:1rem;">
-          <div style="font-size:3rem;">✅</div>
-          <h3 style="color:#00ff88; margin:0.5rem 0 0.3rem; font-size:1.2rem;">No exploitative clauses detected</h3>
-          <p style="color:#7888aa; font-size:0.88rem; margin:0;">
-            The contract appears fair. Still consider having a legal professional review it.
+        <div class="shadow-card" style="text-align:center; margin-top:1rem; border: 1px solid var(--status-low); background: #f0fdf4;">
+          <div style="font-size:3rem;">✓</div>
+          <h3 style="color:var(--status-low); margin:0.5rem 0 0.3rem; font-size:1.2rem;">No exploitative clauses detected</h3>
+          <p style="color:var(--text-muted); font-size:0.9rem; margin:0;">
+            The contract appears fair based on our analysis. Still consider having a legal professional review it.
           </p>
         </div>
         """, unsafe_allow_html=True)
