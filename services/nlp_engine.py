@@ -17,6 +17,16 @@ def load_nlp_model():
         print(f"Failed to load sentence_transformers: {e}")
         return None
 
+@st.cache_data
+def get_anchor_embeddings(anchors_tuple):
+    """
+    Caches the embeddings of our reference anchors so they aren't generated repeatedly.
+    """
+    model = load_nlp_model()
+    if model is None:
+        return None
+    return model.encode(list(anchors_tuple))
+
 def compute_similarity(clause_text, anchors, model):
     """
     Computes max cosine similarity between a clause and a list of anchor sentences.
@@ -25,9 +35,11 @@ def compute_similarity(clause_text, anchors, model):
         return 0.0
     from sklearn.metrics.pairwise import cosine_similarity
     
-    # Generate embeddings
+    # Generate embedding for the new user string
     clause_embedding = model.encode([clause_text])
-    anchor_embeddings = model.encode(anchors)
+    
+    # Fetch cached embeddings for the rule's anchor strings
+    anchor_embeddings = get_anchor_embeddings(tuple(anchors))
     
     # Calculate cosine similarities
     similarities = cosine_similarity(clause_embedding, anchor_embeddings)[0]
