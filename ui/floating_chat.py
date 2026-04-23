@@ -4,7 +4,7 @@ import streamlit as st
 from config import GROQ_API_KEY
 
 def inject_floating_chat():
-    """Injects a purely frontend-based floating chatbot into the Streamlit DOM."""
+    """Injects a purely frontend-based floating/expandable chatbot into the Streamlit DOM."""
     # Get current context
     contract = st.session_state.get("cs_contract_text", "")
     findings = st.session_state.get("cs_findings", "")
@@ -97,31 +97,34 @@ def inject_floating_chat():
                         display: flex;
                         justify-content: center;
                         align-items: center;
-                        transition: transform 0.2s;
+                        transition: transform 0.2s, box-shadow 0.2s;
                         border: 3px solid rgba(255,255,255,0.1);
                     }}
-                    #cs-bot-fab:hover {{ transform: scale(1.08); }}
+                    #cs-bot-fab:hover {{ transform: scale(1.08); box-shadow: 0 6px 20px rgba(15, 76, 129, 0.4); }}
                     #cs-bot-fab svg {{ fill: #ffffff; width: 28px; height: 28px; }}
                     
                     #cs-bot-panel {{
                         position: fixed;
-                        bottom: 100px;
+                        bottom: 105px;
                         right: 30px;
                         width: 380px;
-                        height: 550px;
+                        height: 580px;
                         background: #ffffff;
                         border: 1px solid #e2e8f0;
-                        border-radius: 12px;
+                        border-radius: 16px;
                         box-shadow: 0 10px 40px rgba(0,0,0,0.15);
                         z-index: 10000;
                         display: none;
                         flex-direction: column;
                         overflow: hidden;
                         font-family: 'Inter', sans-serif;
+                        transition: transform 0.3s ease, opacity 0.3s ease;
+                        transform: translateY(20px);
+                        opacity: 0;
                     }}
                     #cs-bot-header {{
                         background: #0f4c81;
-                        padding: 16px;
+                        padding: 16px 20px;
                         border-bottom: 1px solid #0c3e6a;
                         display: flex;
                         justify-content: space-between;
@@ -130,11 +133,11 @@ def inject_floating_chat():
                     }}
                     #cs-bot-body {{
                         flex: 1;
-                        padding: 16px;
+                        padding: 20px;
                         overflow-y: auto;
                         display: flex;
                         flex-direction: column;
-                        gap: 12px;
+                        gap: 16px;
                         background: #f8fafc;
                     }}
                     #cs-bot-input-area {{
@@ -142,17 +145,18 @@ def inject_floating_chat():
                         background: #ffffff;
                         border-top: 1px solid #e2e8f0;
                         display: flex;
-                        gap: 8px;
+                        gap: 12px;
                     }}
                     #cs-bot-input {{
                         flex: 1;
-                        padding: 10px;
+                        padding: 12px;
                         border-radius: 8px;
                         border: 1px solid #e2e8f0;
                         background: #f1f5f9;
                         color: #0f172a;
                         font-family: 'Inter', sans-serif;
                         outline: none;
+                        font-size: 14px;
                     }}
                     #cs-bot-input:focus {{ border-color: #0f4c81; background: #ffffff; }}
                     #cs-bot-send {{
@@ -165,11 +169,11 @@ def inject_floating_chat():
                         cursor: pointer;
                     }}
                     .cs-msg {{
-                        padding: 12px 16px;
-                        border-radius: 12px;
+                        padding: 14px 18px;
+                        border-radius: 14px;
                         max-width: 85%;
                         font-size: 14px;
-                        line-height: 1.5;
+                        line-height: 1.6;
                         word-wrap: break-word;
                     }}
                     .cs-msg-user {{
@@ -177,6 +181,7 @@ def inject_floating_chat():
                         color: #ffffff;
                         align-self: flex-end;
                         border-bottom-right-radius: 4px;
+                        box-shadow: 0 2px 4px rgba(15,76,129,0.2);
                     }}
                     .cs-msg-bot {{
                         background: #ffffff;
@@ -184,7 +189,7 @@ def inject_floating_chat():
                         align-self: flex-start;
                         border: 1px solid #e2e8f0;
                         border-bottom-left-radius: 4px;
-                        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
                     }}
                     .cs-typing {{ align-self: flex-start; color: #64748b; font-size: 12px; display:none; padding: 0 4px; }}
                 </style>
@@ -193,21 +198,21 @@ def inject_floating_chat():
                 </div>
                 <div id="cs-bot-panel">
                     <div id="cs-bot-header">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2z"></path><path d="M22 6L12 16 2 6"></path></svg>
-                            <div style="font-weight:700; font-size:15px; display:flex; flex-direction:column;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2z"></path><path d="M22 10v4c0 1-1 2-2 2H4c-1 0-2-1-2-2v-4"></path><path d="M4 14l8 5 8-5"></path></svg>
+                            <div style="font-weight:700; font-size:16px; display:flex; flex-direction:column; gap:2px;">
                                 <span>Contract Shield AI</span>
-                                <span style="font-size:11px; color:#14b8a6; font-weight:500;">Ready to help</span>
+                                <span style="font-size:11px; color:#14b8a6; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Online</span>
                             </div>
                         </div>
-                        <div id="cs-bot-close" style="cursor:pointer; font-size:18px; color:#94a3b8; padding:4px;">✖</div>
+                        <div id="cs-bot-close" style="cursor:pointer; font-size:20px; color:#94a3b8; padding:4px;">✖</div>
                     </div>
                     <div id="cs-bot-body">
-                        <div class="cs-msg cs-msg-bot">Hi! I'm Contract Shield AI. Ask me anything — legal questions, contract advice, or just say hello!</div>
+                        <div class="cs-msg cs-msg-bot">Hi! I'm Contract Shield AI. I've analyzed your contract — feel free to ask me any questions about specific clauses or risks!</div>
                     </div>
                     <div id="cs-typing" class="cs-typing">AI is thinking...</div>
                     <div id="cs-bot-input-area">
-                        <input type="text" id="cs-bot-input" placeholder="Type a message..." autocomplete="off">
+                        <input type="text" id="cs-bot-input" placeholder="Ask a question..." autocomplete="off">
                         <button id="cs-bot-send">Send</button>
                     </div>
                 </div>
@@ -221,10 +226,28 @@ def inject_floating_chat():
             const body = doc.getElementById('cs-bot-body');
             const typing = doc.getElementById('cs-typing');
             
-            fab.onclick = () => {{
-                panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+            const togglePanel = (show) => {{
+                if (show) {{
+                    panel.style.display = 'flex';
+                    setTimeout(() => {{
+                        panel.style.transform = 'translateY(0)';
+                        panel.style.opacity = '1';
+                    }}, 10);
+                }} else {{
+                    panel.style.transform = 'translateY(20px)';
+                    panel.style.opacity = '0';
+                    setTimeout(() => {{
+                        panel.style.display = 'none';
+                    }}, 300);
+                }}
             }};
-            closeBtn.onclick = () => panel.style.display = 'none';
+
+            fab.onclick = () => {{
+                const isHidden = (panel.style.display === 'none' || !panel.style.display);
+                togglePanel(isHidden);
+            }};
+            
+            closeBtn.onclick = () => togglePanel(false);
             
             const appendMessage = (text, isUser) => {{
                 const d = doc.createElement('div');
@@ -260,7 +283,7 @@ def inject_floating_chat():
                         model: "llama-3.3-70b-versatile",
                         messages: messages,
                         temperature: 0.6,
-                        max_tokens: 600
+                        max_tokens: 800
                     }};
                     
                     let res, data;
@@ -275,7 +298,7 @@ def inject_floating_chat():
                         }});
                         data = await res.json();
                     }} catch (fetchErr) {{
-                        appendMessage("❌ Could not reach Groq API. Check your internet/API key. Error: " + fetchErr.message, false);
+                        appendMessage("❌ Could not reach Groq API. Check your internet/API key.", false);
                         return;
                     }}
                     
@@ -284,7 +307,7 @@ def inject_floating_chat():
                         win.__cs_chat_history.push({{ role: "assistant", content: reply }});
                         appendMessage(reply, false);
                     }} else {{
-                        const errMsg = data?.error?.message || JSON.stringify(data) || "Unknown error";
+                        const errMsg = data?.error?.message || "Unknown error";
                         appendMessage("❌ API Error: " + errMsg, false);
                     }}
                 }} catch (e) {{

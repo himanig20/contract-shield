@@ -363,3 +363,26 @@ def render_footer():
       </p>
     </div>
     """, unsafe_allow_html=True)
+
+def render_highlighted_doc(contract_text: str, findings: list):
+    """DocuSign-style rendering highlighting risky clauses in the original text context."""
+    html_text = contract_text.replace('\n', '<br>')
+    for f in findings:
+        clause = f.get('clause_text', '')
+        if not clause:
+            continue
+        match_clause = clause.replace('\n', '<br>')
+        
+        color = "rgba(239, 68, 68, 0.15)" if f['risk'] == "HIGH" else "rgba(245, 158, 11, 0.15)" if f['risk'] == "MEDIUM" else "rgba(16, 185, 129, 0.15)"
+        border = "#ef4444" if f['risk'] == "HIGH" else "#f59e0b" if f['risk'] == "MEDIUM" else "#10b981"
+        
+        # Clean title for HTML attributes
+        clean_title = f"{f['risk']} Risk: {f['explanation']}".replace('"', '&quot;')
+        highlight_tag = f'<mark style="background: {color}; border-bottom: 2px solid {border}; color: inherit; padding: 0.2rem 0; cursor: help;" title="{clean_title}">{match_clause}</mark>'
+        html_text = html_text.replace(match_clause, highlight_tag)
+
+    st.markdown(f"""
+    <div style="background: white; padding: 2.5rem; border-radius: 8px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); line-height: 2; color: var(--text-primary); font-family: 'Inter', sans-serif; height: 600px; overflow-y: auto; font-size: 0.95rem;">
+        {html_text}
+    </div>
+    """, unsafe_allow_html=True)

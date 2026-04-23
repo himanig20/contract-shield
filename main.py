@@ -316,10 +316,34 @@ if analyze_btn and contract_text.strip():
 
 if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.get("cs_last_contract", "").strip():
     cleaned_text = preprocess(st.session_state["cs_last_contract"])
-    findings = analyze_contract(cleaned_text)
+    
+    # ── Skeleton Loader ──
+    if st.session_state.get("cs_current_text") != cleaned_text:
+        import time
+        load_pl = st.empty()
+        with load_pl.container():
+            st.markdown("""
+            <div style="padding: 4rem 1rem; text-align: center; background: white; border: 1px solid var(--border); border-radius: 12px; margin-top: 1rem;">
+              <div class="loader-spinner" style="margin: 0 auto; width: 44px; height: 44px; border: 3px solid #e2e8f0; border-bottom-color: var(--brand-primary); border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite;"></div>
+              <style>@keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+              <h3 style="color: var(--text-primary); margin-top: 1.5rem; font-size: 1.25rem;">Analyzing Legal Clauses</h3>
+              <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.5rem;">Scanning ML vectors against the database...</p>
+            </div>
+            """, unsafe_allow_html=True)
+            time.sleep(1.2) # Cinematic loader effect
+            
+        findings = analyze_contract(cleaned_text)
+        total_clauses = len(split_clauses(cleaned_text))
+        st.session_state["cs_findings_obj"] = findings
+        st.session_state["cs_total_clauses"] = total_clauses
+        st.session_state["cs_current_text"] = cleaned_text
+        load_pl.empty()
+    else:
+        findings = st.session_state["cs_findings_obj"]
+        total_clauses = st.session_state["cs_total_clauses"]
+
     score = calculate_score(findings)
     label, emoji = get_score_label(score)
-    total_clauses = len(split_clauses(cleaned_text))
 
     # Save to session state for chatbot
     _findings_summary = "\n".join(
@@ -346,11 +370,13 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
     # ── Urgency banner ──
     render_urgency_banner(findings)
 
-    # ── Results header ──
+    # ── Wrap in Sticky Summary ──
+    st.markdown("<div class='cs-sticky-summary'>", unsafe_allow_html=True)
+    
     st.markdown("""
-    <h2 class="text-heading" style="font-size:1.5rem; margin:0.5rem 0 1.2rem;">
-      Analysis Results
-    </h2>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 class="text-heading" style="font-size:1.5rem; margin:0;">Analysis Results</h2>
+    </div>
     """, unsafe_allow_html=True)
 
     high = sum(1 for f in findings if f["risk"] == "HIGH")
@@ -363,6 +389,8 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
     render_stat_card(stat_cols[1], high, "High Risk", "🔴", "#ff4444")
     render_stat_card(stat_cols[2], medium, "Medium Risk", "🟠", "#ff9f43")
     render_stat_card(stat_cols[3], low, "Low Risk", "🟡", "#ffd166")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # ── Score + Donut + Verdict ──
     score_col, chart_col, verdict_col = st.columns([1, 1, 1])
@@ -408,95 +436,100 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
         with radar_col:
             render_radar_chart(cat_scores, FAIRNESS_CATEGORIES)
 
-    # ── Flagged Clauses (Component 4 — 5-section format) ──
-    st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.5rem 0;'>", unsafe_allow_html=True)
+    # ── Tabs: Breakdown vs Docusign ──
+    tab_breakdown, tab_doc = st.tabs(["Clause Breakdown", "Highlighted Document"])
+    
+    with tab_doc:
+        from ui.components import render_highlighted_doc
+        render_highlighted_doc(cleaned_text, findings)
 
-    if findings:
-        st.markdown("""
-        <h2 class="text-heading" style="font-size:1.4rem; margin:0 0 1rem;">Flagged Clauses</h2>
-        """, unsafe_allow_html=True)
-
-        # Generate AI explanations if enabled
-        ai_explanations = {}
-        if st.session_state.get("use_ai_toggle", True) and groq_available():
-            with st.spinner("🧠 Generating AI-powered explanations & safer rewrites…"):
-                for idx, f in enumerate(findings):
-                    ai_explanations[idx] = explain_clause(
-                        clause_text=f.get("clause_text", ""),
-                        rule_category=f["category"],
-                        rule_explanation=f["explanation"],
-                    )
-
-        # Translate toggle
-        if lang_code:
-            translate_all = st.checkbox(
-                f"Translate all explanations to {language}", value=False,
-                key="translate_all_exp",
-            )
-
-        for i, f in enumerate(findings):
-            ai_exp = ai_explanations.get(i)
-
-            # Translate if needed
-            if lang_code and st.session_state.get("translate_all_exp", False) and ai_exp:
-                for key in ["what_it_means", "why_risky", "safer_alternative"]:
-                    if ai_exp.get(key):
-                        ai_exp[key] = translate_text(ai_exp[key], target=lang_code)
-
-            render_clause_card(i + 1, f, ai_explanation=ai_exp)
-
-            # TTS button
-            tts_text = ai_exp.get("what_it_means", f["explanation"]) if ai_exp else f["explanation"]
-            tts_lang = LANGUAGES[language]["tts"]
-            render_tts_button(tts_text, label=f"🔊 Read clause {i+1}", lang=tts_lang)
-
-        # ── Action Checklist ──
-        st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.5rem 0;'>", unsafe_allow_html=True)
-        render_action_checklist(findings)
-
-        # ── Download + WhatsApp ──
-        st.markdown("<div style='margin-top:1.4rem;'>", unsafe_allow_html=True)
-        report = generate_text_report(findings, score, doc_type)
-
-        dl_col, wa_col = st.columns([3, 2])
-        with dl_col:
-            st.download_button(
-                label="Download Full Report (.txt)",
-                data=report,
-                file_name="contract_shield_report.txt",
-                mime="text/plain",
-                use_container_width=True,
-            )
-        with wa_col:
-            wa_msg = (
-                f"I analyzed my contract using Contract Shield v5.0\n\n"
-                f"📊 Fairness Score: {score}/100\n"
-                f"Found {high} HIGH-risk and {len(findings)} total flagged clauses.\n\n"
-                f"Get the free tool: https://github.com/himanig20/contract-shield"
-            )
-            wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_msg)}"
-            st.markdown(f"""
-            <a href="{wa_url}" target="_blank" style="text-decoration:none;">
-              <div style="background:var(--status-low); border-radius:8px;
-                          padding:0.6rem 1rem; text-align:center; font-weight:600;
-                          color:white; font-size:0.95rem; cursor:pointer;
-                          transition:all 0.2s;">
-                Share on WhatsApp
-              </div>
-            </a>
+    with tab_breakdown:
+        if findings:
+            st.markdown("""
+            <h2 class="text-heading" style="font-size:1.4rem; margin:0 0 1rem;">Flagged Clauses</h2>
             """, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
-    else:
-        st.markdown("""
-        <div class="shadow-card" style="text-align:center; margin-top:1rem; border: 1px solid var(--status-low); background: #f0fdf4;">
-          <div style="font-size:3rem;">✓</div>
-          <h3 style="color:var(--status-low); margin:0.5rem 0 0.3rem; font-size:1.2rem;">No exploitative clauses detected</h3>
-          <p style="color:var(--text-muted); font-size:0.9rem; margin:0;">
-            The contract appears fair based on our analysis. Still consider having a legal professional review it.
-          </p>
-        </div>
-        """, unsafe_allow_html=True)
+            # Generate AI explanations if enabled
+            ai_explanations = {}
+            if st.session_state.get("use_ai_toggle", True) and groq_available():
+                with st.spinner("🧠 Generating AI-powered explanations & safer rewrites…"):
+                    for idx, f in enumerate(findings):
+                        ai_explanations[idx] = explain_clause(
+                            clause_text=f.get("clause_text", ""),
+                            rule_category=f["category"],
+                            rule_explanation=f["explanation"],
+                        )
+
+            # Translate toggle
+            if lang_code:
+                translate_all = st.checkbox(
+                    f"Translate all explanations to {language}", value=False,
+                    key="translate_all_exp",
+                )
+
+            for i, f in enumerate(findings):
+                ai_exp = ai_explanations.get(i)
+
+                # Translate if needed
+                if lang_code and st.session_state.get("translate_all_exp", False) and ai_exp:
+                    for key in ["what_it_means", "why_risky", "safer_alternative"]:
+                        if ai_exp.get(key):
+                            ai_exp[key] = translate_text(ai_exp[key], target=lang_code)
+
+                render_clause_card(i + 1, f, ai_explanation=ai_exp)
+
+                # TTS button
+                tts_text = ai_exp.get("what_it_means", f["explanation"]) if ai_exp else f["explanation"]
+                tts_lang = LANGUAGES[language]["tts"]
+                render_tts_button(tts_text, label=f"🔊 Read clause {i+1}", lang=tts_lang)
+
+            # ── Action Checklist ──
+            st.markdown("<hr style='border-color:rgba(255,255,255,0.07); margin:1.5rem 0;'>", unsafe_allow_html=True)
+            render_action_checklist(findings)
+
+            # ── Download + WhatsApp ──
+            st.markdown("<div style='margin-top:1.4rem;'>", unsafe_allow_html=True)
+            report = generate_text_report(findings, score, doc_type)
+
+            dl_col, wa_col = st.columns([3, 2])
+            with dl_col:
+                st.download_button(
+                    label="Download Full Report (.txt)",
+                    data=report,
+                    file_name="contract_shield_report.txt",
+                    mime="text/plain",
+                    use_container_width=True,
+                )
+            with wa_col:
+                wa_msg = (
+                    f"I analyzed my contract using Contract Shield v5.0\n\n"
+                    f"📊 Fairness Score: {score}/100\n"
+                    f"Found {high} HIGH-risk and {len(findings)} total flagged clauses.\n\n"
+                    f"Get the free tool: https://github.com/himanig20/contract-shield"
+                )
+                wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_msg)}"
+                st.markdown(f"""
+                <a href="{wa_url}" target="_blank" style="text-decoration:none;">
+                  <div style="background:var(--status-low); border-radius:8px;
+                              padding:0.6rem 1rem; text-align:center; font-weight:600;
+                              color:white; font-size:0.95rem; cursor:pointer;
+                              transition:all 0.2s;">
+                    Share on WhatsApp
+                  </div>
+                </a>
+                """, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        else:
+            st.markdown("""
+            <div class="shadow-card" style="text-align:center; margin-top:1rem; border: 1px solid var(--status-low); background: #f0fdf4;">
+              <div style="font-size:3rem;">✓</div>
+              <h3 style="color:var(--status-low); margin:0.5rem 0 0.3rem; font-size:1.2rem;">No exploitative clauses detected</h3>
+              <p style="color:var(--text-muted); font-size:0.9rem; margin:0;">
+                The contract appears fair based on our analysis. Still consider having a legal professional review it.
+              </p>
+            </div>
+            """, unsafe_allow_html=True)
 
 elif analyze_btn and not contract_text.strip():
     st.markdown("""

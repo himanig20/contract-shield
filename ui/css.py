@@ -261,5 +261,18 @@ textarea:focus {
     border-radius: 4px;
     transition: width 0.8s cubic-bezier(0.25, 1, 0.5, 1);
 }
+
+/* Sticky Summary Header */
+.cs-sticky-summary {
+    position: sticky;
+    top: 55px; /* sit just below the streamlit header */
+    z-index: 800;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 0;
+    margin-top: -1rem;
+    margin-bottom: 2rem;
+}
 </style>
 """
