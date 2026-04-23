@@ -48,17 +48,25 @@ html, body, [data-testid="stAppViewContainer"],
 
 /* ── Sidebar ── */
 [data-testid="stSidebar"] {
-    background: var(--bg-secondary) !important;
     border-right: 1px solid var(--border) !important;
 }
-[data-testid="stSidebar"] * { color: var(--text-primary) !important; }
+
+/* Specific styling for the labels (Legal Document Type, etc) */
 [data-testid="stSidebar"] .stSelectbox label,
-[data-testid="stSidebar"] .stRadio label {
-    color: var(--text-muted) !important; 
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.05em !important; 
+[data-testid="stSidebar"] .stRadio label,
+[data-testid="stSidebar"] .stMultiSelect label,
+[data-testid="stSidebar"] .stNumberInput label {
+    font-size: 0.82rem !important;
+    font-weight: 800 !important;
     text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+    margin-bottom: 0.6rem !important;
+}
+
+/* Ensure radio button options are clearly styled */
+[data-testid="stSidebar"] div[role="radiogroup"] label p {
+    font-weight: 500 !important;
+    font-size: 0.92rem !important;
 }
 
 /* ── Text area ── */
@@ -143,10 +151,11 @@ textarea:focus {
     background: var(--bg-tertiary) !important;
 }
 .streamlit-expanderContent {
-    background: #fafafa !important;
+    background: #ffffff !important;
     border: 1px solid var(--border) !important;
     border-top: none !important;
     border-radius: 0 0 var(--radius) var(--radius) !important;
+    color: var(--text-primary) !important;
 }
 
 /* ── Tabs ── */
@@ -158,9 +167,9 @@ textarea:focus {
 }
 .stTabs [data-baseweb="tab"] {
     border-radius: 0 !important;
-    color: var(--text-muted) !important;
+    color: #475569 !important;
     font-weight: 500 !important;
-    font-size: 0.9rem !important;
+    font-size: 0.95rem !important;
     padding: 0.75rem 1rem !important;
     background: transparent !important;
     border: none !important;
@@ -168,7 +177,7 @@ textarea:focus {
 }
 .stTabs [aria-selected="true"] {
     color: var(--brand-primary) !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
     border-bottom: 2px solid var(--brand-primary) !important;
     background: transparent !important;
 }
@@ -199,12 +208,14 @@ textarea:focus {
 }
 
 /* ── Code blocks ── */
-.stCodeBlock, code {
-    background: var(--bg-secondary) !important;
+.stCodeBlock, code, pre {
+    background: #f8fafc !important;
     border-radius: var(--radius-sm) !important;
     border: 1px solid var(--border) !important;
-    color: var(--brand-secondary) !important;
+    color: #1e293b !important;
     font-family: var(--mono) !important;
+    font-size: 0.85rem !important;
+    padding: 0.5rem !important;
 }
 
 /* ── File uploader ── */

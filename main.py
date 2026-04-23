@@ -167,15 +167,16 @@ with st.sidebar:
         <p style="color:var(--text-muted); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.4rem;">Recent Analyses</p>
         """, unsafe_allow_html=True)
         for h in reversed(history[-3:]):
-            _hc = "#ff4444" if h["score"] < 40 else "#ffd166" if h["score"] < 70 else "#00ff88"
+            _hc = "var(--status-high)" if h["score"] < 40 else "var(--status-med)" if h["score"] < 70 else "var(--status-low)"
             st.markdown(f"""
-            <div style="background:#111c35; border:1px solid rgba(255,255,255,0.07);
-                        border-radius:8px; padding:0.55rem 0.8rem; margin-bottom:0.4rem;">
+            <div style="background:var(--bg-main); border:1px solid var(--border);
+                        border-radius:8px; padding:0.65rem 0.9rem; margin-bottom:0.5rem;
+                        box-shadow:var(--shadow-sm);">
               <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:0.78rem; color:#c8cfe8; font-weight:600;">{h['doc_type']}</span>
-                <span style="font-size:0.78rem; color:{_hc}; font-weight:800;">{h['score']}/100</span>
+                <span style="font-size:0.8rem; color:var(--text-primary); font-weight:700;">{h['doc_type']}</span>
+                <span style="font-size:0.8rem; color:{_hc}; font-weight:800;">{h['score']}/100</span>
               </div>
-              <div style="font-size:0.66rem; color:#7888aa; margin-top:0.15rem;">
+              <div style="font-size:0.68rem; color:var(--text-muted); margin-top:0.25rem; font-weight:500;">
                 {h['timestamp']} · {h['n_findings']} issues · {h['n_high']} HIGH
               </div>
             </div>
