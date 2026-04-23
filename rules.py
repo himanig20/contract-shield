@@ -1,4 +1,5 @@
 import re
+from services.nlp_engine import compute_similarity, load_nlp_model
 
 RISK_RULES = {
     'termination_no_notice': {
@@ -6,6 +7,11 @@ RISK_RULES = {
                      'immediate dismissal', 'without prior notice',
                      'at will', 'without cause'],
         'regex': r'terminat\w+.{0,30}(without|no).{0,15}notice',
+        'semantic_anchors': [
+            "The company reserves the right to terminate employment immediately without prior notice.",
+            "Employee may be dismissed at any time without warning or payment in lieu of notice.",
+            "This contract can be terminated at will without cause."
+        ],
         'risk': 'HIGH',
         'category': 'Unfair Termination',
         'explanation': 'This allows the employer to fire you at any time without warning and possibly without paying your dues. This likely violates the Industrial Disputes Act, 1947.',
@@ -16,6 +22,11 @@ RISK_RULES = {
         'keywords': ['compounded daily', 'penal interest', 'per day interest',
                      'compound interest', 'compounding penalty'],
         'regex': r'(\d+)\s*%\s*per\s*(day|week)',
+        'semantic_anchors': [
+            "Interest of 5% per day will be charged on late payments.",
+            "Penalty interest compounded daily will be levied.",
+            "A late fee of 10% per week applies to the outstanding balance."
+        ],
         'risk': 'HIGH',
         'category': 'Predatory Interest Rate',
         'explanation': 'This interest rate compounds daily or weekly, meaning your debt can multiply extremely fast. 3% per day = over 1000% annual interest. This may be illegal under Indian usury laws.',
@@ -26,6 +37,11 @@ RISK_RULES = {
         'keywords': ['deduct from wages', 'withhold salary', 'offset dues',
                      'recover from payment', 'forfeit payment', 'withhold up to'],
         'regex': r'(deduct|withhold|forfeit).{0,30}(wage|salary|pay|dues)',
+        'semantic_anchors': [
+            "The employer may deduct from wages any amount determined by management for losses.",
+            "Company reserves the right to withhold salary for perceived damages.",
+            "Deductions from your pay can be made automatically for any misconduct."
+        ],
         'risk': 'HIGH',
         'category': 'Illegal Wage Deduction',
         'explanation': 'The employer is claiming the right to deduct money from your wages. Deductions without your written consent may be illegal under the Payment of Wages Act, 1936.',
@@ -37,6 +53,11 @@ RISK_RULES = {
                      'indemnify employer', 'hold harmless',
                      'waives all rights to legal action'],
         'regex': r'waiv\w+.{0,40}(right|claim|legal|compens)',
+        'semantic_anchors': [
+            "The employee waives all rights to legal action against the company for workplace injury.",
+            "You agree to hold the landlord harmless for any injury or property damage.",
+            "The company is not liable to pay any compensation for accidents during duty."
+        ],
         'risk': 'HIGH',
         'category': 'Liability Waiver',
         'explanation': 'You are being asked to give up your right to claim compensation if something goes wrong including workplace injury. Such waivers are often unenforceable under Indian law.',
@@ -48,6 +69,11 @@ RISK_RULES = {
                      'lock out', 'remove possessions',
                      'vacate the premises immediately'],
         'regex': r'vacat\w+.{0,20}(immediately|without notice)',
+        'semantic_anchors': [
+            "The tenant must vacate the premises immediately upon landlord's request.",
+            "Landlord reserves the right to evict without prior notice or warning.",
+            "You must leave the property immediately and remove all belongings when asked."
+        ],
         'risk': 'HIGH',
         'category': 'Unlawful Eviction',
         'explanation': 'This clause allows the landlord to evict you without proper notice. Most Indian states require 30 days written notice before eviction.',
@@ -59,6 +85,11 @@ RISK_RULES = {
                      'no additional compensation', 'unpaid hours',
                      'no additional pay', 'without extra pay'],
         'regex': r'overtime.{0,40}(no|without).{0,20}(pay|compens)',
+        'semantic_anchors': [
+            "Employee must work mandatory overtime with no additional pay.",
+            "You are required to work extra hours as needed without extra compensation.",
+            "No overtime pay will be provided for working beyond 9 hours."
+        ],
         'risk': 'MEDIUM',
         'category': 'Forced Overtime',
         'explanation': 'This clause requires you to work extra hours without extra pay. Under the Factories Act, overtime must be paid at double the regular rate.',
@@ -70,6 +101,11 @@ RISK_RULES = {
                      'as management decides', 'at the discretion of',
                      'absolute discretion'],
         'regex': r'(sole|absolute)\s+discretion',
+        'semantic_anchors': [
+            "The company can make changes to this contract at its sole discretion.",
+            "Management reserves the absolute discretion to alter the terms.",
+            "Decisions will be made as deemed fit by the employer."
+        ],
         'risk': 'MEDIUM',
         'category': 'Ambiguous Term',
         'explanation': 'This phrase gives the other party unlimited power to decide without any accountability. There is no limit on what reasonable or fit means only they decide.',
@@ -80,6 +116,11 @@ RISK_RULES = {
         'keywords': ['not engage in', 'refrain from working', 'compete with',
                      'not work for competitor', 'exclusivity clause'],
         'regex': r'(not|refrain).{0,20}(work|employ|engag).{0,20}(compet|similar)',
+        'semantic_anchors': [
+            "The employee shall not engage in competing businesses for 3 years after leaving.",
+            "You are forbidden to work for any similar company within India.",
+            "Employee agrees not to work for any competitor globally after termination."
+        ],
         'risk': 'MEDIUM',
         'category': 'Non-Compete Clause',
         'explanation': 'This restricts where you can work after leaving this job. Overly broad non-compete clauses are often unenforceable in India especially for low-wage workers.',
@@ -90,6 +131,11 @@ RISK_RULES = {
         'keywords': ['penalty of rs', 'late fee', 'surcharge',
                      'liquidated damages', 'forfeiture', 'penalty per day'],
         'regex': r'penalty.{0,30}(rs\.?|₹|\d)',
+        'semantic_anchors': [
+            "A penalty of Rs 5000 per day will be charged for any breach.",
+            "Liquidated damages of excessive amounts will be applied.",
+            "A severe late fee will be levied in addition to compounding interest."
+        ],
         'risk': 'HIGH',
         'category': 'Excessive Penalty',
         'explanation': 'This document charges a penalty for breach. Ask: How much exactly? Under what conditions? Is there a maximum cap? Uncapped penalties can trap you in debt.',
@@ -100,6 +146,11 @@ RISK_RULES = {
         'keywords': ['share personal information', 'disclose to third parties',
                      'sell information', 'pass to agents', 'share your data'],
         'regex': r'(share|disclose|sell).{0,30}(personal|data|information)',
+        'semantic_anchors': [
+            "We may share your personal data with third-party collection agencies.",
+            "The landlord may disclose tenant information to future landlords without consent.",
+            "Your contact and identification details can be sold to affiliates."
+        ],
         'risk': 'LOW',
         'category': 'Privacy Concern',
         'explanation': 'Your personal information may be shared with or sold to third parties. Ask exactly who will receive your data and for what purpose.',
@@ -122,38 +173,66 @@ def split_clauses(text):
     return [text.strip()]
 
 
-def _estimate_confidence(has_keyword, has_regex):
+def _estimate_confidence(has_keyword, has_regex, similarity_score):
+    base_conf = max(similarity_score, 0.4)
     if has_keyword and has_regex:
-        return 0.92
+        return max(base_conf, 0.95)
     if has_regex:
-        return 0.82
-    return 0.65
+        return max(base_conf, 0.88)
+    if similarity_score > 0.8:
+        return max(base_conf, 0.92)
+    if similarity_score > 0.65:
+        return max(base_conf, 0.80)
+    if has_keyword:
+        return max(base_conf, 0.75)
+    return base_conf
 
 
 def analyze_contract(text):
+    nlp_model = load_nlp_model()
+    
     findings = []
     clauses = split_clauses(text)
 
     for clause_id, clause_text in enumerate(clauses, 1):
         clause_lower = clause_text.lower()
+        if len(clause_lower) < 15:
+            continue  # Skip extremely short fragments
+
         for rule_name, rule in RISK_RULES.items():
             keyword_match = ''
             regex_match = ''
 
+            # Keyword check
             for kw in rule['keywords']:
                 if kw in clause_lower:
                     keyword_match = kw
                     break
 
+            # Regex check
             if rule.get('regex'):
                 match = re.search(rule['regex'], clause_lower)
                 if match:
                     regex_match = match.group(0)
 
-            if keyword_match or regex_match:
-                match_source = 'keyword+regex' if keyword_match and regex_match else ('regex' if regex_match else 'keyword')
-                matched_text = regex_match or keyword_match
-                confidence = _estimate_confidence(bool(keyword_match), bool(regex_match))
+            # NLP Similarity check
+            similarity_score = 0.0
+            if nlp_model and 'semantic_anchors' in rule: # We fall back to 0.0 if not loaded
+                similarity_score = compute_similarity(clause_text, rule['semantic_anchors'], nlp_model)
+                
+            # If any system flags it
+            is_semantic_match = similarity_score >= 0.70 # threshold
+            
+            if keyword_match or regex_match or is_semantic_match:
+                match_sources = []
+                if keyword_match: match_sources.append('keyword')
+                if regex_match: match_sources.append('regex')
+                if is_semantic_match: match_sources.append('semantic')
+                
+                match_source = '+'.join(match_sources)
+                matched_text = regex_match or keyword_match or "Contextual Match (NLP)"
+                
+                confidence = _estimate_confidence(bool(keyword_match), bool(regex_match), similarity_score)
                 findings.append({
                     'rule': rule_name,
                     'risk': rule['risk'],
@@ -169,6 +248,7 @@ def analyze_contract(text):
                 })
 
     risk_order = {'HIGH': 0, 'MEDIUM': 1, 'LOW': 2}
+    # Sort primarily by risk level, then by highest confidence
     findings.sort(key=lambda item: (risk_order.get(item['risk'], 3), -item['confidence'], item['clause_id']))
 
     return findings

@@ -222,8 +222,10 @@ st.markdown(f"""
 
 # ── Input section (tabbed) ────────────────────────────────────────────────────
 import pdfplumber
+import pytesseract
+from PIL import Image
 
-tab_paste, tab_pdf = st.tabs(["📋  Paste Text", "📄  Upload PDF"])
+tab_paste, tab_pdf, tab_img = st.tabs(["📋  Paste Text", "📄  Upload PDF", "🖼️  Upload Image (OCR)"])
 
 with tab_paste:
     st.markdown("<p style='font-size:0.75rem; color:#7888aa; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.3rem;'>📋 Paste your contract text</p>", unsafe_allow_html=True)
@@ -263,6 +265,33 @@ with tab_pdf:
         except Exception as e:
             contract_text = ""
             st.error(f"⚠️ Error reading PDF: {e}")
+
+with tab_img:
+    st.markdown("<p style='font-size:0.75rem; color:#7888aa; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:0.3rem;'>🖼️ Upload an Image of the Contract</p>", unsafe_allow_html=True)
+    uploaded_image = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"], label_visibility="collapsed", key="img_upload")
+
+    if uploaded_image is not None:
+        try:
+            with st.spinner("🔍 Running OCR to extract text from image..."):
+                image = Image.open(uploaded_image)
+                extracted_text = pytesseract.image_to_string(image)
+                
+            if extracted_text.strip():
+                contract_text = extracted_text
+                st.markdown(f"""
+                <div style="background:rgba(0,255,136,0.06); border:1px solid rgba(0,255,136,0.2);
+                            border-radius:10px; padding:0.7rem 1rem; font-size:0.83rem; color:#00ff88;">
+                  ✅ Successfully extracted {len(contract_text):,} characters via OCR
+                </div>
+                """, unsafe_allow_html=True)
+                with st.expander("👁 Preview extracted text"):
+                    st.text(contract_text[:3000] + ("\n\n… [truncated]" if len(contract_text) > 3000 else ""))
+            else:
+                contract_text = ""
+                st.error("📛 OCR couldn't find any readable text in this image. Try uploading a clearer photo.")
+        except Exception as e:
+            contract_text = ""
+            st.error(f"⚠️ Error processing image for OCR: {e}")
 
 # ── Action buttons ────────────────────────────────────────────────────────────
 col1, col2 = st.columns([3, 1])
