@@ -55,168 +55,164 @@ def inject_floating_chat():
             const win = window.parent;
             const doc = win.document;
             
-            // Re-run guard
-            if (doc.getElementById('cs-chatbot-root')) {{
-                // Update context dynamically on reruns without destroying DOM
-                win.__cs_system_prompt = {system_prompt_safe};
-                win.__cs_api_key = {api_key_safe};
-                return;
-            }}
-            
-            // Store context
+            // Update context dynamically on all runs
             win.__cs_system_prompt = {system_prompt_safe};
             win.__cs_api_key = {api_key_safe};
-            win.__cs_chat_history = [];
             
-            // Create root
-            const root = doc.createElement('div');
-            root.id = 'cs-chatbot-root';
-            doc.body.appendChild(root);
+            // Build DOM only if it doesn't exist (re-run guard)
+            if (!doc.getElementById('cs-chatbot-root')) {{
+                win.__cs_chat_history = [];
+                
+                const root = doc.createElement('div');
+                root.id = 'cs-chatbot-root';
+                doc.body.appendChild(root);
 
-            // Fetch Inter UI font for neatness
-            if (!doc.head.querySelector('link[href*="Inter"]')) {{
-                const lnk = doc.createElement('link');
-                lnk.rel = 'stylesheet';
-                lnk.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
-                doc.head.appendChild(lnk);
-            }}
+                // Fetch Inter UI font for neatness
+                if (!doc.head.querySelector('link[href*="Inter"]')) {{
+                    const lnk = doc.createElement('link');
+                    lnk.rel = 'stylesheet';
+                    lnk.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+                    doc.head.appendChild(lnk);
+                }}
 
-            root.innerHTML = `
-                <style>
-                    #cs-bot-fab {{
-                        position: fixed;
-                        bottom: 30px;
-                        right: 30px;
-                        width: 60px;
-                        height: 60px;
-                        background: #0f4c81;
-                        border-radius: 50%;
-                        box-shadow: 0 4px 16px rgba(15, 76, 129, 0.3);
-                        cursor: pointer;
-                        z-index: 10000;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        transition: transform 0.2s, box-shadow 0.2s;
-                        border: 3px solid rgba(255,255,255,0.1);
-                    }}
-                    #cs-bot-fab:hover {{ transform: scale(1.08); box-shadow: 0 6px 20px rgba(15, 76, 129, 0.4); }}
-                    #cs-bot-fab svg {{ fill: #ffffff; width: 28px; height: 28px; }}
-                    
-                    #cs-bot-panel {{
-                        position: fixed;
-                        bottom: 105px;
-                        right: 30px;
-                        width: 380px;
-                        height: 580px;
-                        background: #ffffff;
-                        border: 1px solid #e2e8f0;
-                        border-radius: 16px;
-                        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-                        z-index: 10000;
-                        display: none;
-                        flex-direction: column;
-                        overflow: hidden;
-                        font-family: 'Inter', sans-serif;
-                        transition: transform 0.3s ease, opacity 0.3s ease;
-                        transform: translateY(20px);
-                        opacity: 0;
-                    }}
-                    #cs-bot-header {{
-                        background: #0f4c81;
-                        padding: 16px 20px;
-                        border-bottom: 1px solid #0c3e6a;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        color: #ffffff;
-                    }}
-                    #cs-bot-body {{
-                        flex: 1;
-                        padding: 20px;
-                        overflow-y: auto;
-                        display: flex;
-                        flex-direction: column;
-                        gap: 16px;
-                        background: #f8fafc;
-                    }}
-                    #cs-bot-input-area {{
-                        padding: 16px;
-                        background: #ffffff;
-                        border-top: 1px solid #e2e8f0;
-                        display: flex;
-                        gap: 12px;
-                    }}
-                    #cs-bot-input {{
-                        flex: 1;
-                        padding: 12px;
-                        border-radius: 8px;
-                        border: 1px solid #e2e8f0;
-                        background: #f1f5f9;
-                        color: #0f172a;
-                        font-family: 'Inter', sans-serif;
-                        outline: none;
-                        font-size: 14px;
-                    }}
-                    #cs-bot-input:focus {{ border-color: #0f4c81; background: #ffffff; }}
-                    #cs-bot-send {{
-                        background: #0f4c81;
-                        color: #ffffff;
-                        border: none;
-                        border-radius: 8px;
-                        padding: 0 16px;
-                        font-weight: 600;
-                        cursor: pointer;
-                    }}
-                    .cs-msg {{
-                        padding: 14px 18px;
-                        border-radius: 14px;
-                        max-width: 85%;
-                        font-size: 14px;
-                        line-height: 1.6;
-                        word-wrap: break-word;
-                    }}
-                    .cs-msg-user {{
-                        background: #0f4c81;
-                        color: #ffffff;
-                        align-self: flex-end;
-                        border-bottom-right-radius: 4px;
-                        box-shadow: 0 2px 4px rgba(15,76,129,0.2);
-                    }}
-                    .cs-msg-bot {{
-                        background: #ffffff;
-                        color: #0f172a;
-                        align-self: flex-start;
-                        border: 1px solid #e2e8f0;
-                        border-bottom-left-radius: 4px;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-                    }}
-                    .cs-typing {{ align-self: flex-start; color: #64748b; font-size: 12px; display:none; padding: 0 4px; }}
-                </style>
-                <div id="cs-bot-fab">
-                    <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                </div>
-                <div id="cs-bot-panel">
-                    <div id="cs-bot-header">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2z"></path><path d="M22 10v4c0 1-1 2-2 2H4c-1 0-2-1-2-2v-4"></path><path d="M4 14l8 5 8-5"></path></svg>
-                            <div style="font-weight:700; font-size:16px; display:flex; flex-direction:column; gap:2px;">
-                                <span>Contract Shield AI</span>
-                                <span style="font-size:11px; color:#14b8a6; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Online</span>
+                root.innerHTML = `
+                    <style>
+                        #cs-bot-fab {{
+                            position: fixed;
+                            bottom: 30px;
+                            right: 30px;
+                            width: 60px;
+                            height: 60px;
+                            background: #0f4c81;
+                            border-radius: 50%;
+                            box-shadow: 0 4px 16px rgba(15, 76, 129, 0.3);
+                            cursor: pointer;
+                            z-index: 10000;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            transition: transform 0.2s, box-shadow 0.2s;
+                            border: 3px solid rgba(255,255,255,0.1);
+                        }}
+                        #cs-bot-fab:hover {{ transform: scale(1.08); box-shadow: 0 6px 20px rgba(15, 76, 129, 0.4); }}
+                        #cs-bot-fab svg {{ fill: #ffffff; width: 28px; height: 28px; pointer-events: none; }}
+                        
+                        #cs-bot-panel {{
+                            position: fixed;
+                            bottom: 105px;
+                            right: 30px;
+                            width: 380px;
+                            height: 580px;
+                            background: #ffffff;
+                            border: 1px solid #e2e8f0;
+                            border-radius: 16px;
+                            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+                            z-index: 10000;
+                            display: none;
+                            flex-direction: column;
+                            overflow: hidden;
+                            font-family: 'Inter', sans-serif;
+                            transition: transform 0.3s ease, opacity 0.3s ease;
+                            transform: translateY(20px);
+                            opacity: 0;
+                        }}
+                        #cs-bot-header {{
+                            background: #0f4c81;
+                            padding: 16px 20px;
+                            border-bottom: 1px solid #0c3e6a;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            color: #ffffff;
+                        }}
+                        #cs-bot-body {{
+                            flex: 1;
+                            padding: 20px;
+                            overflow-y: auto;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 16px;
+                            background: #f8fafc;
+                        }}
+                        #cs-bot-input-area {{
+                            padding: 16px;
+                            background: #ffffff;
+                            border-top: 1px solid #e2e8f0;
+                            display: flex;
+                            gap: 12px;
+                        }}
+                        #cs-bot-input {{
+                            flex: 1;
+                            padding: 12px;
+                            border-radius: 8px;
+                            border: 1px solid #e2e8f0;
+                            background: #f1f5f9;
+                            color: #0f172a;
+                            font-family: 'Inter', sans-serif;
+                            outline: none;
+                            font-size: 14px;
+                        }}
+                        #cs-bot-input:focus {{ border-color: #0f4c81; background: #ffffff; }}
+                        #cs-bot-send {{
+                            background: #0f4c81;
+                            color: #ffffff;
+                            border: none;
+                            border-radius: 8px;
+                            padding: 0 16px;
+                            font-weight: 600;
+                            cursor: pointer;
+                        }}
+                        .cs-msg {{
+                            padding: 14px 18px;
+                            border-radius: 14px;
+                            max-width: 85%;
+                            font-size: 14px;
+                            line-height: 1.6;
+                            word-wrap: break-word;
+                        }}
+                        .cs-msg-user {{
+                            background: #0f4c81;
+                            color: #ffffff;
+                            align-self: flex-end;
+                            border-bottom-right-radius: 4px;
+                            box-shadow: 0 2px 4px rgba(15,76,129,0.2);
+                        }}
+                        .cs-msg-bot {{
+                            background: #ffffff;
+                            color: #0f172a;
+                            align-self: flex-start;
+                            border: 1px solid #e2e8f0;
+                            border-bottom-left-radius: 4px;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+                        }}
+                        .cs-typing {{ align-self: flex-start; color: #64748b; font-size: 12px; display:none; padding: 0 4px; }}
+                    </style>
+                    <div id="cs-bot-fab">
+                        <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                    </div>
+                    <div id="cs-bot-panel">
+                        <div id="cs-bot-header">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2 2 2 0 0 1-2 2 2 2 0 0 1-2-2 2 2 0 0 1 2-2z"></path><path d="M22 10v4c0 1-1 2-2 2H4c-1 0-2-1-2-2v-4"></path><path d="M4 14l8 5 8-5"></path></svg>
+                                <div style="font-weight:700; font-size:16px; display:flex; flex-direction:column; gap:2px;">
+                                    <span>Contract Shield AI</span>
+                                    <span style="font-size:11px; color:#14b8a6; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Online</span>
+                                </div>
                             </div>
+                            <div id="cs-bot-close" style="cursor:pointer; font-size:20px; color:#94a3b8; padding:4px;">✖</div>
                         </div>
-                        <div id="cs-bot-close" style="cursor:pointer; font-size:20px; color:#94a3b8; padding:4px;">✖</div>
+                        <div id="cs-bot-body">
+                            <div class="cs-msg cs-msg-bot">Hi! I'm Contract Shield AI. I've analyzed your contract — feel free to ask me any questions about specific clauses or risks!</div>
+                        </div>
+                        <div id="cs-typing" class="cs-typing">AI is thinking...</div>
+                        <div id="cs-bot-input-area">
+                            <input type="text" id="cs-bot-input" placeholder="Ask a question..." autocomplete="off">
+                            <button id="cs-bot-send">Send</button>
+                        </div>
                     </div>
-                    <div id="cs-bot-body">
-                        <div class="cs-msg cs-msg-bot">Hi! I'm Contract Shield AI. I've analyzed your contract — feel free to ask me any questions about specific clauses or risks!</div>
-                    </div>
-                    <div id="cs-typing" class="cs-typing">AI is thinking...</div>
-                    <div id="cs-bot-input-area">
-                        <input type="text" id="cs-bot-input" placeholder="Ask a question..." autocomplete="off">
-                        <button id="cs-bot-send">Send</button>
-                    </div>
-                </div>
-            `;
+                `;
+            }}
+            // (End re-run guard/DOM builder)
             
             const fab = doc.getElementById('cs-bot-fab');
             const panel = doc.getElementById('cs-bot-panel');
