@@ -158,8 +158,115 @@ def generate_text_report(findings, score, doc_type):
     lines.append("- Keep a signed copy of all negotiated revisions.")
     lines.append("- Seek legal review before signing if high-risk items remain.")
 
-    lines.append("\n" + "=" * 50)
-    lines.append("DISCLAIMER: This is not legal advice.")
-    lines.append("Consult a qualified lawyer for legal help.")
     lines.append("=" * 50)
     return "\n".join(lines)
+
+
+def clean_text(text):
+    if not text:
+        return ""
+    # Replace common unicode before relying on latin-1 fallback
+    text = text.replace("—", "-").replace("–", "-").replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
+    return text.encode('latin-1', 'replace').decode('latin-1')
+
+def generate_pdf_report(findings, score, doc_type):
+    try:
+        from fpdf import FPDF
+    except ImportError:
+        return None
+
+    from datetime import datetime
+
+    high = sum(1 for f in findings if f['risk'] == 'HIGH')
+    medium = sum(1 for f in findings if f['risk'] == 'MEDIUM')
+    low = sum(1 for f in findings if f['risk'] == 'LOW')
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("helvetica", "B", 20)
+    pdf.set_text_color(15, 76, 129)
+    pdf.cell(0, 15, "CONTRACT SHIELD", ln=True, align="C")
+    
+    pdf.set_font("helvetica", "", 10)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 5, f"Legal Analysis Report - {datetime.now().strftime('%B %d, %Y')}", ln=True, align="C")
+    pdf.ln(10)
+
+    pdf.set_fill_color(248, 250, 252)
+    pdf.rect(10, pdf.get_y(), 190, 45, "F")
+    pdf.set_xy(15, pdf.get_y() + 5)
+    
+    pdf.set_font("helvetica", "B", 14)
+    pdf.set_text_color(15, 76, 129)
+    pdf.cell(0, 10, "EXECUTIVE SUMMARY", ln=True)
+    
+    pdf.set_font("helvetica", "", 11)
+    pdf.set_text_color(30, 30, 30)
+    pdf.cell(80, 8, clean_text(f"Document Type: {doc_type}"))
+    pdf.set_font("helvetica", "B", 11)
+    pdf.cell(0, 8, f"Fairness Score: {score}/100", ln=True)
+    
+    pdf.set_font("helvetica", "", 11)
+    label, _ = get_score_label(score)
+    pdf.cell(0, 8, clean_text(f"Analysis Result: {label}"), ln=True)
+    pdf.cell(0, 8, f"Issues Identified: {len(findings)} (High: {high}, Medium: {medium}, Low: {low})", ln=True)
+    pdf.ln(15)
+
+    pdf.set_font("helvetica", "B", 14)
+    pdf.set_text_color(15, 76, 129)
+    pdf.cell(0, 10, "DETAILED FINDINGS", ln=True)
+    pdf.ln(2)
+
+    if not findings:
+        pdf.set_font("helvetica", "I", 11)
+        pdf.set_text_color(50, 50, 50)
+        pdf.cell(0, 10, "No major risks were detected in the scanned text.", ln=True)
+    else:
+        for i, f in enumerate(findings, 1):
+            pdf.set_font("helvetica", "B", 11)
+            if f['risk'] == 'HIGH':
+                pdf.set_text_color(220, 38, 38)
+            elif f['risk'] == 'MEDIUM':
+                pdf.set_text_color(217, 119, 6)
+            else:
+                pdf.set_text_color(202, 138, 4)
+            
+            pdf.cell(0, 10, clean_text(f"[{i}] {f['risk']} RISK - {f['category']}"), ln=True)
+            
+            pdf.set_font("helvetica", "", 10)
+            pdf.set_text_color(30, 30, 30)
+            pdf.set_x(15)
+            pdf.multi_cell(0, 6, clean_text(f"Explanation: {f['explanation']}"))
+            
+            if f.get('suggestion'):
+                pdf.set_x(15)
+                pdf.set_font("helvetica", "I", 10)
+                pdf.multi_cell(0, 6, clean_text(f"Recommendation: {f['suggestion']}"))
+            
+            pdf.ln(4)
+
+    pdf.ln(10)
+    pdf.set_font("helvetica", "B", 12)
+    pdf.set_text_color(15, 76, 129)
+    pdf.cell(0, 10, "RECOMMENDED NEXT STEPS", ln=True)
+    pdf.set_font("helvetica", "", 10)
+    pdf.set_text_color(30, 30, 30)
+    steps = [
+        "1. Do not sign the document immediately.",
+        "2. Discuss the flagged clauses with the other party and request modifications.",
+        "3. For HIGH risk flags, consult a qualified legal professional.",
+        "4. Keep all negotiations and revised drafts documented."
+    ]
+    for step in steps:
+        pdf.set_x(15)
+        pdf.cell(0, 7, clean_text(step), ln=True)
+
+    pdf.ln(15)
+    pdf.set_font("helvetica", "I", 8)
+    pdf.set_text_color(150, 150, 150)
+    disclaimer = "DISCLAIMER: Contract Shield is an AI-powered detection tool, not a law firm. This report does not constitute legal advice."
+    pdf.multi_cell(0, 5, clean_text(disclaimer), align="C")
+
+    # Output as string/bytes gracefully cast for Streamlit download button
+    out = pdf.output()
+    return bytes(out) if not isinstance(out, str) else out.encode('latin-1')

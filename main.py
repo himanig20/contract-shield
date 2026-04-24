@@ -12,7 +12,10 @@ load_dotenv()
 
 # ── Core imports ──────────────────────────────────────────────────────────────
 from rules import analyze_contract, split_clauses
-from utils import calculate_score, calculate_category_scores, get_score_label, preprocess, generate_text_report
+from utils import (
+    calculate_score, calculate_category_scores, get_score_label, 
+    preprocess, generate_text_report, generate_pdf_report
+)
 from config import LANGUAGES, CONTRACT_TYPES, FAIRNESS_CATEGORIES, GROQ_API_KEY
 from services.groq_client import explain_clause, is_available as groq_available
 from services.translator import translate_text
@@ -492,15 +495,27 @@ if st.session_state.get("cs_analyzed_btn_pressed", False) and st.session_state.g
             st.markdown("<div style='margin-top:1.4rem;'>", unsafe_allow_html=True)
             report = generate_text_report(findings, score, doc_type)
 
-            dl_col, wa_col = st.columns([3, 2])
-            with dl_col:
+            dl_col1, dl_col2, wa_col = st.columns([2, 2, 2])
+            with dl_col1:
                 st.download_button(
-                    label="Download Full Report (.txt)",
+                    label="Download .TXT Report",
                     data=report,
                     file_name="contract_shield_report.txt",
                     mime="text/plain",
                     use_container_width=True,
                 )
+            with dl_col2:
+                pdf_report = generate_pdf_report(findings, score, doc_type)
+                if pdf_report:
+                    st.download_button(
+                        label="Download .PDF Report",
+                        data=pdf_report,
+                        file_name=f"contract_shield_report_{datetime.now().strftime('%H%M%S')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+                else:
+                    st.info("Run `pip install fpdf2` for PDFs")
             with wa_col:
                 wa_msg = (
                     f"I analyzed my contract using Contract Shield v5.0\n\n"
